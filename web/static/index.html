@@ -162,11 +162,11 @@
                                     <div class="bg-red-500/10 rounded-lg p-4 border border-red-500/30">
                                         <div class="flex justify-between items-center mb-2">
                                             <span class="text-xs text-red-400 font-medium">📦 Before</span>
-                                            <span class="text-lg font-bold text-red-400" x-text="((datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0) + '%'"></span>
+                                            <span class="text-lg font-bold text-red-400" x-text="normalizeScore(datasetStats[ds.id]?.scores?.before, 35) + '%'"></span>
                                         </div>
                                         <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
                                             <div class="bg-red-500 h-2 rounded-full"
-                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.before || 0.35) * 100) + '%'"></div>
+                                                 :style="'width: ' + normalizeScore(datasetStats[ds.id]?.scores?.before, 35) + '%'"></div>
                                         </div>
                                         <div class="text-xs text-gray-500">Original data quality</div>
                                     </div>
@@ -188,11 +188,11 @@
                                     <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
                                         <div class="flex justify-between items-center mb-2">
                                             <span class="text-xs text-purple-400 font-medium">🎯 Potential</span>
-                                            <span class="text-lg font-bold text-purple-400" x-text="((datasetStats[ds.id]?.scores?.after || 0.35) * 100).toFixed(0) + '%'"></span>
+                                            <span class="text-lg font-bold text-purple-400" x-text="normalizeScore(datasetStats[ds.id]?.scores?.after, 35) + '%'"></span>
                                         </div>
                                         <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
                                             <div class="bg-purple-500 h-2 rounded-full"
-                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.after || 0.35) * 100) + '%'"></div>
+                                                 :style="'width: ' + normalizeScore(datasetStats[ds.id]?.scores?.after, 35) + '%'"></div>
                                         </div>
                                         <div class="text-xs text-gray-500">If all products enriched</div>
                                     </div>
@@ -215,10 +215,10 @@
                                         <span class="text-purple-400 font-medium" x-text="datasetStats[ds.id]?.proposals?.total || 0"></span>
                                         <span class="text-gray-500">proposals</span>
                                     </div>
-                                    <div class="flex items-center gap-2" x-show="getProcessingPercent(ds.id) > 0 && getProcessingPercent(ds.id) < 100">
-                                        <span class="text-blue-400">↑</span>
-                                        <span class="text-blue-400 font-medium">+<span x-text="(getWeightedAfterScore(ds.id) - (datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0)"></span>%</span>
-                                        <span class="text-gray-500">current improvement</span>
+                                    <div class="flex items-center gap-2" x-show="getProcessingPercent(ds.id) > 0 && getWeightedAfterScore(ds.id) > normalizeScore(datasetStats[ds.id]?.scores?.before, 35)">
+                                        <span class="text-green-400">↑</span>
+                                        <span class="text-green-400 font-medium">+<span x-text="(getWeightedAfterScore(ds.id) - normalizeScore(datasetStats[ds.id]?.scores?.before, 35)).toFixed(0)"></span>%</span>
+                                        <span class="text-gray-500">improvement</span>
                                     </div>
                                 </div>
 
@@ -2430,12 +2430,21 @@
                 },
 
                 // Dashboard score calculations
+                // Normalize score to 0-100 range (handles both 0.95 and 95 formats)
+                normalizeScore(score, defaultVal = 35) {
+                    if (score === undefined || score === null) return defaultVal;
+                    // If score is already > 1, it's probably already a percentage
+                    if (score > 1) return Math.min(100, Math.round(score));
+                    // Otherwise it's a decimal (0.95 = 95%)
+                    return Math.min(100, Math.round(score * 100));
+                },
+
                 getProcessingPercent(datasetId) {
                     const stats = this.datasetStats[datasetId];
                     if (!stats) return 0;
                     const ds = this.datasets.find(d => d.id === datasetId);
                     if (!ds || ds.row_count === 0) return 0;
-                    return Math.round((stats.products?.enriched || 0) / ds.row_count * 100);
+                    return Math.min(100, Math.round((stats.products?.enriched || 0) / ds.row_count * 100));
                 },
 
                 getWeightedAfterScore(datasetId) {
@@ -2446,12 +2455,18 @@
                     
                     const enriched = stats.products?.enriched || 0;
                     const pending = stats.products?.pending || ds.row_count;
-                    const beforeScore = stats.scores?.before || 0.35;
-                    const afterScore = stats.scores?.after || 0.35;
+                    
+                    // Normalize scores to 0-1 range (handle both 0.95 and 95 formats)
+                    let beforeScore = stats.scores?.before || 0.35;
+                    let afterScore = stats.scores?.after || 0.35;
+                    if (beforeScore > 1) beforeScore = beforeScore / 100;
+                    if (afterScore > 1) afterScore = afterScore / 100;
                     
                     // Weighted average: enriched products use after score, pending use before
                     const weighted = (enriched * afterScore + pending * beforeScore) / ds.row_count;
-                    return Math.round(weighted * 100);
+                    
+                    // Cap at 100%
+                    return Math.min(100, Math.round(weighted * 100));
                 },
 
                 getProductProposalCount(productId) {
