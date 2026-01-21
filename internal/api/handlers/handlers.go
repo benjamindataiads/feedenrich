@@ -34,6 +34,41 @@ func NewHandlers(cfg *config.Config, queries *db.Queries, agnt *agent.Agent) *Ha
 	}
 }
 
+// calculateAgentReadinessScore computes a score based on enrichment results
+func calculateAgentReadinessScore(session *agent.Session) float64 {
+	if session == nil || len(session.Proposals) == 0 {
+		return 0.3 // Base score for analyzed but no improvements found
+	}
+
+	// Score based on:
+	// - Number of proposals (more = more improvements possible = lower initial quality)
+	// - Average confidence of proposals
+	// - Risk levels
+	
+	totalConfidence := 0.0
+	lowRiskCount := 0
+	
+	for _, p := range session.Proposals {
+		totalConfidence += p.Confidence
+		if p.RiskLevel == "low" {
+			lowRiskCount++
+		}
+	}
+
+	avgConfidence := totalConfidence / float64(len(session.Proposals))
+	lowRiskRatio := float64(lowRiskCount) / float64(len(session.Proposals))
+
+	// Higher score = better agent readiness
+	// Base 0.5 + confidence bonus + low risk bonus
+	score := 0.5 + (avgConfidence * 0.3) + (lowRiskRatio * 0.2)
+	
+	if score > 1.0 {
+		score = 1.0
+	}
+	
+	return score
+}
+
 // UploadDataset handles TSV/CSV file upload
 func (h *Handlers) UploadDataset(c echo.Context) error {
 	name := c.FormValue("name")
@@ -339,6 +374,20 @@ func (h *Handlers) EnrichProduct(c echo.Context) error {
 		// Save session and proposals to DB
 		if err := h.queries.CreateAgentSession(ctx, *session); err != nil {
 			fmt.Printf("Failed to save session for product %s: %v\n", product.ID, err)
+		}
+
+		// Calculate agent readiness score based on proposals
+		score := calculateAgentReadinessScore(session)
+		status := "enriched"
+		if len(session.Proposals) == 0 {
+			status = "pending" // No proposals generated
+		}
+
+		// Update product with score
+		if err := h.queries.UpdateProductAfterEnrichment(ctx, product.ID, score, status); err != nil {
+			fmt.Printf("Failed to update product score for %s: %v\n", product.ID, err)
+		} else {
+			fmt.Printf("Updated product %s: score=%.2f, status=%s\n", product.ID, score, status)
 		}
 	}()
 

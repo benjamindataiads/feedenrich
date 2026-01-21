@@ -126,6 +126,15 @@ func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (*models.Product
 	return &p, nil
 }
 
+func (q *Queries) UpdateProductAfterEnrichment(ctx context.Context, id uuid.UUID, score float64, status string) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE products 
+		SET agent_readiness_score = $2, status = $3, updated_at = NOW()
+		WHERE id = $1
+	`, id, score, status)
+	return err
+}
+
 func (q *Queries) ListProductsByDataset(ctx context.Context, datasetID uuid.UUID) ([]models.Product, error) {
 	rows, err := q.pool.Query(ctx, `
 		SELECT id, dataset_id, external_id, raw_data, current_data, version, status, agent_readiness_score, created_at, updated_at
