@@ -1026,7 +1026,11 @@
                 getProductImage(p) {
                     if (!p) return '';
                     const data = this.parseData(p.raw_data);
-                    return data.image_link || data.imageLink || data.image || data.Image || data.image_url || '';
+                    // Try many possible field names for image (GMC uses "image_link" or "image link")
+                    return data.image_link || data['image link'] || data.imageLink || 
+                           data.image || data.Image || data.image_url || 
+                           data.ImageLink || data['Image Link'] || data.IMAGE_LINK ||
+                           data.lien_image || data['lien image'] || '';
                 },
 
                 parseData(data) {
