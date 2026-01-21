@@ -6,43 +6,50 @@
     <title>FeedEnrich - Product Data Enrichment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        .diff-add { background-color: #d4edda; color: #155724; }
+        .diff-remove { background-color: #f8d7da; color: #721c24; text-decoration: line-through; }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen" x-data="app()">
+<body class="bg-gray-100 min-h-screen" x-data="app()">
     <!-- Header -->
-    <header class="bg-white shadow-sm">
+    <header class="bg-white shadow-sm border-b">
         <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-xl font-bold text-gray-900">🚀 FeedEnrich</h1>
             <span class="text-sm text-gray-500">Agent-powered product enrichment</span>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <!-- Upload Section -->
-        <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold mb-4">Import Dataset</h2>
-            <form @submit.prevent="uploadDataset" class="flex gap-4 items-end">
-                <div class="flex-1">
+            <form @submit.prevent="uploadDataset" class="flex gap-4 items-end flex-wrap">
+                <div class="flex-1 min-w-48">
                     <label class="block text-sm text-gray-600 mb-1">Dataset Name</label>
                     <input type="text" x-model="uploadName" placeholder="My Catalog Q1 2024" 
                            class="w-full border rounded px-3 py-2">
                 </div>
-                <div class="flex-1">
+                <div class="flex-1 min-w-48">
                     <label class="block text-sm text-gray-600 mb-1">TSV/CSV File</label>
                     <input type="file" @change="uploadFile = $event.target.files[0]" accept=".tsv,.csv,.txt"
                            class="w-full border rounded px-3 py-2">
                 </div>
-                <button type="submit" :disabled="!uploadFile" 
+                <button type="submit" :disabled="!uploadFile || uploading" 
                         class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
-                    Upload
+                    <span x-show="!uploading">Upload</span>
+                    <span x-show="uploading">Uploading...</span>
                 </button>
             </form>
         </div>
 
         <!-- Datasets List -->
-        <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold">Datasets</h2>
-                <button @click="loadDatasets" class="text-blue-600 text-sm">Refresh</button>
+                <button @click="loadDatasets" class="text-blue-600 text-sm hover:underline">Refresh</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -57,8 +64,8 @@
                     </thead>
                     <tbody>
                         <template x-for="ds in datasets" :key="ds.id">
-                            <tr class="border-t">
-                                <td class="px-4 py-3" x-text="ds.name"></td>
+                            <tr class="border-t hover:bg-gray-50">
+                                <td class="px-4 py-3 font-medium" x-text="ds.name"></td>
                                 <td class="px-4 py-3" x-text="ds.row_count"></td>
                                 <td class="px-4 py-3">
                                     <span class="px-2 py-1 rounded text-xs" 
@@ -66,10 +73,10 @@
                                           x-text="ds.status"></span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-500" x-text="new Date(ds.created_at).toLocaleDateString()"></td>
-                                <td class="px-4 py-3">
-                                    <button @click="viewDataset(ds.id)" class="text-blue-600 text-sm mr-2">View</button>
-                                    <button @click="enrichDataset(ds.id)" class="text-green-600 text-sm mr-2">Enrich</button>
-                                    <button @click="deleteDataset(ds.id)" class="text-red-600 text-sm">Delete</button>
+                                <td class="px-4 py-3 space-x-2">
+                                    <button @click="viewDataset(ds.id)" class="text-blue-600 text-sm hover:underline">View</button>
+                                    <button @click="enrichDataset(ds.id)" class="text-green-600 text-sm hover:underline">Enrich</button>
+                                    <button @click="deleteDataset(ds.id)" class="text-red-600 text-sm hover:underline">Delete</button>
                                 </td>
                             </tr>
                         </template>
@@ -82,10 +89,10 @@
         </div>
 
         <!-- Products (when dataset selected) -->
-        <div x-show="selectedDataset" class="bg-white rounded-lg shadow p-6 mb-8">
+        <div x-show="selectedDataset" class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold">Products</h2>
-                <button @click="selectedDataset = null" class="text-gray-500 text-sm">Close</button>
+                <button @click="selectedDataset = null; products = []" class="text-gray-500 text-sm hover:underline">Close</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -99,44 +106,180 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="p in products" :key="p.id">
-                            <tr class="border-t">
+                        <template x-for="p in products.slice(0, 20)" :key="p.id">
+                            <tr class="border-t hover:bg-gray-50" :class="enrichingProduct === p.id ? 'bg-blue-50' : ''">
                                 <td class="px-4 py-3 font-mono text-sm" x-text="p.external_id"></td>
-                                <td class="px-4 py-3" x-text="getProductTitle(p)"></td>
+                                <td class="px-4 py-3 max-w-xs truncate" x-text="getProductTitle(p)"></td>
                                 <td class="px-4 py-3">
                                     <span class="px-2 py-1 rounded text-xs"
-                                          :class="p.status === 'enriched' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
-                                          x-text="p.status"></span>
+                                          :class="{
+                                            'bg-green-100 text-green-800': p.status === 'enriched',
+                                            'bg-blue-100 text-blue-800': enrichingProduct === p.id,
+                                            'bg-gray-100 text-gray-800': p.status === 'pending' && enrichingProduct !== p.id
+                                          }">
+                                        <span x-show="enrichingProduct === p.id" class="pulse">enriching...</span>
+                                        <span x-show="enrichingProduct !== p.id" x-text="p.status"></span>
+                                    </span>
                                 </td>
                                 <td class="px-4 py-3" x-text="p.agent_readiness_score ? (p.agent_readiness_score * 100).toFixed(0) + '%' : '-'"></td>
                                 <td class="px-4 py-3">
-                                    <button @click="enrichProduct(p.id)" class="text-green-600 text-sm">🤖 Enrich</button>
+                                    <button @click="enrichProduct(p)" 
+                                            :disabled="enrichingProduct === p.id"
+                                            class="text-green-600 text-sm hover:underline disabled:opacity-50">
+                                        🤖 Enrich
+                                    </button>
+                                    <button @click="viewProduct(p)" class="text-blue-600 text-sm hover:underline ml-2">
+                                        View
+                                    </button>
                                 </td>
                             </tr>
                         </template>
                     </tbody>
                 </table>
+                <p x-show="products.length > 20" class="text-sm text-gray-500 mt-2 px-4">
+                    Showing 20 of <span x-text="products.length"></span> products
+                </p>
             </div>
         </div>
 
-        <!-- Agent Trace (when running/completed) -->
-        <div x-show="agentTrace" class="bg-white rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">🤖 Agent Trace</h2>
-                <button @click="agentTrace = null" class="text-gray-500 text-sm">Close</button>
-            </div>
-            <div class="space-y-4">
-                <template x-for="(step, i) in agentTrace?.steps || []" :key="i">
-                    <div class="border rounded p-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Step <span x-text="step.step_number"></span></span>
-                            <span x-show="step.tool_name" class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded" x-text="step.tool_name"></span>
+        <!-- Product Detail Modal -->
+        <div x-show="selectedProduct" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" @click.self="selectedProduct = null">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <h3 class="font-semibold text-lg">Product: <span x-text="selectedProduct?.external_id"></span></h3>
+                    <button @click="selectedProduct = null" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                </div>
+                
+                <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                    <!-- Current Data -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-2">📦 Raw Data</h4>
+                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="JSON.stringify(JSON.parse(selectedProduct?.raw_data || '{}'), null, 2)"></pre>
                         </div>
-                        <p x-show="step.thought" class="text-gray-700 mb-2" x-text="step.thought"></p>
-                        <details x-show="step.tool_output" class="text-sm">
-                            <summary class="cursor-pointer text-gray-500">View output</summary>
-                            <pre class="mt-2 bg-gray-50 p-2 rounded text-xs overflow-x-auto" x-text="JSON.stringify(JSON.parse(step.tool_output || '{}'), null, 2)"></pre>
-                        </details>
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-2">✨ Current Data</h4>
+                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="JSON.stringify(JSON.parse(selectedProduct?.current_data || '{}'), null, 2)"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Agent Trace -->
+                    <div x-show="agentTrace && agentTrace.steps && agentTrace.steps.length > 0">
+                        <h4 class="font-medium text-gray-700 mb-2">🤖 Agent Trace</h4>
+                        <div class="space-y-2 max-h-64 overflow-y-auto">
+                            <template x-for="(step, i) in agentTrace?.steps || []" :key="i">
+                                <div class="border rounded p-3 bg-gray-50">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Step <span x-text="step.step_number"></span></span>
+                                        <span x-show="step.tool_name" class="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded" x-text="step.tool_name"></span>
+                                        <span class="text-xs text-gray-400" x-text="step.duration_ms + 'ms'"></span>
+                                    </div>
+                                    <p x-show="step.thought" class="text-sm text-gray-700" x-text="step.thought"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Proposals -->
+                    <div x-show="productProposals.length > 0">
+                        <h4 class="font-medium text-gray-700 mb-2">📝 Proposals (<span x-text="productProposals.length"></span>)</h4>
+                        <div class="space-y-3">
+                            <template x-for="prop in productProposals" :key="prop.id">
+                                <div class="border rounded p-4 bg-white shadow-sm">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span class="font-medium text-gray-800" x-text="prop.field"></span>
+                                            <span class="ml-2 text-xs px-2 py-0.5 rounded"
+                                                  :class="{
+                                                    'bg-green-100 text-green-800': prop.risk_level === 'low',
+                                                    'bg-yellow-100 text-yellow-800': prop.risk_level === 'medium',
+                                                    'bg-red-100 text-red-800': prop.risk_level === 'high'
+                                                  }"
+                                                  x-text="prop.risk_level + ' risk'"></span>
+                                            <span class="ml-2 text-xs text-gray-500" x-text="(prop.confidence * 100).toFixed(0) + '% confidence'"></span>
+                                        </div>
+                                        <div class="flex gap-2" x-show="prop.status === 'proposed'">
+                                            <button @click="updateProposal(prop.id, 'accept')" class="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Accept</button>
+                                            <button @click="updateProposal(prop.id, 'reject')" class="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Reject</button>
+                                        </div>
+                                        <span x-show="prop.status !== 'proposed'" class="text-xs px-2 py-1 rounded"
+                                              :class="prop.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                              x-text="prop.status"></span>
+                                    </div>
+                                    
+                                    <!-- Before / After -->
+                                    <div class="grid grid-cols-2 gap-4 mt-2">
+                                        <div>
+                                            <span class="text-xs text-gray-500">Before:</span>
+                                            <div class="diff-remove p-2 rounded mt-1 text-sm" x-text="prop.before_value || '(empty)'"></div>
+                                        </div>
+                                        <div>
+                                            <span class="text-xs text-gray-500">After:</span>
+                                            <div class="diff-add p-2 rounded mt-1 text-sm" x-text="prop.after_value"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sources -->
+                                    <div x-show="prop.sources && JSON.parse(prop.sources || '[]').length > 0" class="mt-2">
+                                        <span class="text-xs text-gray-500">Sources:</span>
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            <template x-for="src in JSON.parse(prop.sources || '[]')" :key="src.reference">
+                                                <a :href="src.reference" target="_blank" class="text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-0.5 rounded">
+                                                    🔗 <span x-text="src.type"></span>
+                                                </a>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t bg-gray-50 flex justify-between">
+                    <button @click="enrichProduct(selectedProduct)" 
+                            :disabled="enrichingProduct === selectedProduct?.id"
+                            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+                        🤖 Enrich this product
+                    </button>
+                    <button @click="selectedProduct = null" class="text-gray-600 px-4 py-2">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Proposals View -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Recent Proposals</h2>
+                <button @click="loadProposals" class="text-blue-600 text-sm hover:underline">Refresh</button>
+            </div>
+            <div x-show="proposals.length === 0" class="text-center text-gray-500 py-8">
+                No proposals yet. Enrich a product to generate proposals.
+            </div>
+            <div x-show="proposals.length > 0" class="space-y-3">
+                <template x-for="prop in proposals.slice(0, 10)" :key="prop.id">
+                    <div class="border rounded p-4 hover:bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-medium" x-text="prop.field"></span>
+                                <span class="ml-2 text-xs px-2 py-0.5 rounded"
+                                      :class="{
+                                        'bg-green-100 text-green-800': prop.risk_level === 'low',
+                                        'bg-yellow-100 text-yellow-800': prop.risk_level === 'medium',
+                                        'bg-red-100 text-red-800': prop.risk_level === 'high'
+                                      }"
+                                      x-text="prop.risk_level"></span>
+                            </div>
+                            <div class="flex gap-2" x-show="prop.status === 'proposed'">
+                                <button @click="updateProposal(prop.id, 'accept')" class="text-xs bg-green-600 text-white px-3 py-1 rounded">Accept</button>
+                                <button @click="updateProposal(prop.id, 'reject')" class="text-xs bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+                            </div>
+                            <span x-show="prop.status !== 'proposed'" class="text-xs" x-text="prop.status"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mt-2 text-sm">
+                            <div class="diff-remove p-2 rounded" x-text="prop.before_value || '(empty)'"></div>
+                            <div class="diff-add p-2 rounded" x-text="prop.after_value"></div>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -148,13 +291,26 @@
             return {
                 datasets: [],
                 products: [],
+                proposals: [],
                 selectedDataset: null,
+                selectedProduct: null,
+                productProposals: [],
                 agentTrace: null,
+                enrichingProduct: null,
                 uploadFile: null,
                 uploadName: '',
+                uploading: false,
 
                 async init() {
                     await this.loadDatasets();
+                    await this.loadProposals();
+                    
+                    // Auto-refresh proposals every 5 seconds
+                    setInterval(() => {
+                        if (this.enrichingProduct) {
+                            this.loadProposals();
+                        }
+                    }, 5000);
                 },
 
                 async loadDatasets() {
@@ -163,23 +319,33 @@
                     this.datasets = data.data || [];
                 },
 
+                async loadProposals() {
+                    const res = await fetch('/api/proposals');
+                    const data = await res.json();
+                    this.proposals = data.data || [];
+                },
+
                 async uploadDataset() {
+                    this.uploading = true;
                     const formData = new FormData();
                     formData.append('file', this.uploadFile);
                     formData.append('name', this.uploadName || 'Untitled');
 
-                    const res = await fetch('/api/datasets/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    try {
+                        const res = await fetch('/api/datasets/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
 
-                    if (res.ok) {
-                        this.uploadFile = null;
-                        this.uploadName = '';
-                        await this.loadDatasets();
-                        alert('Dataset uploaded!');
-                    } else {
-                        alert('Upload failed');
+                        if (res.ok) {
+                            this.uploadFile = null;
+                            this.uploadName = '';
+                            await this.loadDatasets();
+                        } else {
+                            alert('Upload failed');
+                        }
+                    } finally {
+                        this.uploading = false;
                     }
                 },
 
@@ -190,21 +356,75 @@
                     this.products = data.data || [];
                 },
 
+                async viewProduct(product) {
+                    this.selectedProduct = product;
+                    this.productProposals = this.proposals.filter(p => p.product_id === product.id);
+                    // TODO: Load agent trace when we have the session ID
+                    this.agentTrace = null;
+                },
+
                 async enrichDataset(id) {
                     const res = await fetch(`/api/datasets/${id}/enrich`, { method: 'POST' });
                     if (res.ok) {
-                        alert('Enrichment job started!');
+                        alert('Batch enrichment started! (Note: currently processes products one by one)');
                     }
                 },
 
-                async enrichProduct(id) {
-                    const res = await fetch(`/api/products/${id}/enrich`, { 
-                        method: 'POST',
+                async enrichProduct(product) {
+                    this.enrichingProduct = product.id;
+                    
+                    try {
+                        const res = await fetch(`/api/products/${product.id}/enrich`, { 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ goal: 'GMC compliance + agent readiness' })
+                        });
+                        
+                        if (res.ok) {
+                            // Poll for completion
+                            this.pollForProposals(product.id);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        this.enrichingProduct = null;
+                    }
+                },
+
+                async pollForProposals(productId) {
+                    let attempts = 0;
+                    const maxAttempts = 60; // 5 minutes max
+                    
+                    const poll = async () => {
+                        attempts++;
+                        await this.loadProposals();
+                        
+                        const hasProposals = this.proposals.some(p => p.product_id === productId);
+                        
+                        if (hasProposals || attempts >= maxAttempts) {
+                            this.enrichingProduct = null;
+                            if (this.selectedProduct?.id === productId) {
+                                this.productProposals = this.proposals.filter(p => p.product_id === productId);
+                            }
+                        } else {
+                            setTimeout(poll, 5000);
+                        }
+                    };
+                    
+                    setTimeout(poll, 3000);
+                },
+
+                async updateProposal(id, action) {
+                    const res = await fetch(`/api/proposals/${id}`, {
+                        method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ goal: 'GMC compliance + agent readiness' })
+                        body: JSON.stringify({ action })
                     });
+                    
                     if (res.ok) {
-                        alert('Agent enrichment started! Check back in a few seconds.');
+                        await this.loadProposals();
+                        if (this.selectedProduct) {
+                            this.productProposals = this.proposals.filter(p => p.product_id === this.selectedProduct.id);
+                        }
                     }
                 },
 
@@ -212,12 +432,16 @@
                     if (!confirm('Delete this dataset?')) return;
                     await fetch(`/api/datasets/${id}`, { method: 'DELETE' });
                     await this.loadDatasets();
+                    if (this.selectedDataset === id) {
+                        this.selectedDataset = null;
+                        this.products = [];
+                    }
                 },
 
                 getProductTitle(p) {
                     try {
                         const data = JSON.parse(p.raw_data);
-                        return data.title || data.Title || '-';
+                        return data.title || data.Title || data.name || data.Name || '-';
                     } catch {
                         return '-';
                     }
