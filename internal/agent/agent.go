@@ -13,12 +13,18 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+// TokenTracker interface for recording token usage
+type TokenTracker interface {
+	RecordTokenUsage(ctx context.Context, model string, promptTokens, completionTokens int, costUSD float64) error
+}
+
 // Agent is the main enrichment agent that reasons and uses tools
 type Agent struct {
-	config    *config.Config
-	client    *openai.Client
-	toolbox   *tools.Toolbox
-	callbacks Callbacks
+	config       *config.Config
+	client       *openai.Client
+	toolbox      *tools.Toolbox
+	callbacks    Callbacks
+	tokenTracker TokenTracker
 }
 
 // Callbacks for streaming agent events
@@ -67,6 +73,34 @@ func New(cfg *config.Config, toolbox *tools.Toolbox) *Agent {
 // SetCallbacks sets the event callbacks
 func (a *Agent) SetCallbacks(cb Callbacks) {
 	a.callbacks = cb
+}
+
+// SetTokenTracker sets the token tracker for recording usage
+func (a *Agent) SetTokenTracker(tracker TokenTracker) {
+	a.tokenTracker = tracker
+}
+
+// recordUsage records token usage to the database
+func (a *Agent) recordUsage(ctx context.Context, model string, usage openai.Usage) {
+	if a.tokenTracker == nil {
+		return
+	}
+	
+	// Calculate cost based on model
+	// GPT-4o-mini pricing (as of 2024): $0.15/1M input, $0.60/1M output
+	// GPT-4o pricing: $2.50/1M input, $10.00/1M output
+	var costUSD float64
+	switch model {
+	case openai.GPT4oMini, openai.GPT4oMini20240718:
+		costUSD = float64(usage.PromptTokens)*0.00000015 + float64(usage.CompletionTokens)*0.0000006
+	case openai.GPT4o, openai.GPT4o20240513:
+		costUSD = float64(usage.PromptTokens)*0.0000025 + float64(usage.CompletionTokens)*0.00001
+	default:
+		// Default to GPT-4o-mini pricing
+		costUSD = float64(usage.PromptTokens)*0.00000015 + float64(usage.CompletionTokens)*0.0000006
+	}
+	
+	_ = a.tokenTracker.RecordTokenUsage(ctx, model, usage.PromptTokens, usage.CompletionTokens, costUSD)
 }
 
 // Run starts the agent on a product - uses FAST mode by default (single API call)
@@ -150,6 +184,8 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 		})
 		if err == nil && len(imgResp.Choices) > 0 {
 			imageContext = "\n\nImage Analysis: " + imgResp.Choices[0].Message.Content
+			// Track image analysis tokens
+			a.recordUsage(ctx, openai.GPT4oMini, imgResp.Usage)
 		}
 	}
 
@@ -263,6 +299,9 @@ OPTIONAL BUT VALUABLE:
 	if err != nil {
 		return nil, fmt.Errorf("optimization call failed: %w", err)
 	}
+
+	// Track main optimization tokens
+	a.recordUsage(ctx, openai.GPT4oMini, resp.Usage)
 
 	// Parse response
 	var output struct {

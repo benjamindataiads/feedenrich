@@ -32,6 +32,9 @@ func NewServer(cfg *config.Config, queries *db.Queries) *Server {
 	// Create toolbox and agent
 	toolbox := tools.New(cfg)
 	agnt := agent.New(cfg, toolbox)
+	
+	// Set token tracker to record usage to database
+	agnt.SetTokenTracker(queries)
 
 	s := &Server{
 		echo:    e,
@@ -89,6 +92,9 @@ func (s *Server) setupRoutes() {
 	api.GET("/prompts", h.ListPrompts)
 	api.GET("/prompts/:id", h.GetPrompt)
 	api.PATCH("/prompts/:id", h.UpdatePrompt)
+
+	// Token usage stats
+	api.GET("/token-usage", h.GetTokenUsageStats)
 
 	// Serve static files for frontend
 	s.echo.Static("/", "web/static")

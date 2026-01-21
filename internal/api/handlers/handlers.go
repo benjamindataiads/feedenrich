@@ -701,3 +701,24 @@ func (h *Handlers) UpdatePrompt(c echo.Context) error {
 	prompt, _ := h.queries.GetPrompt(c.Request().Context(), id)
 	return c.JSON(http.StatusOK, prompt)
 }
+
+// GetTokenUsageStats returns token usage statistics
+func (h *Handlers) GetTokenUsageStats(c echo.Context) error {
+	days := 30 // Default to last 30 days
+	if d := c.QueryParam("days"); d != "" {
+		fmt.Sscanf(d, "%d", &days)
+	}
+	if days < 1 {
+		days = 1
+	}
+	if days > 365 {
+		days = 365
+	}
+
+	stats, err := h.queries.GetTokenUsageStats(c.Request().Context(), days)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get token usage stats")
+	}
+
+	return c.JSON(http.StatusOK, stats)
+}

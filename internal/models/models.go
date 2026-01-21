@@ -146,6 +146,31 @@ type Prompt struct {
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
+// TokenUsage tracks API token consumption and costs
+type TokenUsage struct {
+	ID               uuid.UUID `json:"id" db:"id"`
+	Date             string    `json:"date" db:"date"`
+	Model            string    `json:"model" db:"model"`
+	PromptTokens     int       `json:"prompt_tokens" db:"prompt_tokens"`
+	CompletionTokens int       `json:"completion_tokens" db:"completion_tokens"`
+	TotalTokens      int       `json:"total_tokens" db:"total_tokens"`
+	CostUSD          float64   `json:"cost_usd" db:"cost_usd"`
+	APICalls         int       `json:"api_calls" db:"api_calls"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// TokenUsageStats aggregated statistics
+type TokenUsageStats struct {
+	TotalPromptTokens     int     `json:"total_prompt_tokens"`
+	TotalCompletionTokens int     `json:"total_completion_tokens"`
+	TotalTokens           int     `json:"total_tokens"`
+	TotalCostUSD          float64 `json:"total_cost_usd"`
+	TotalAPICalls         int     `json:"total_api_calls"`
+	ByModel               []TokenUsage `json:"by_model,omitempty"`
+	ByDay                 []TokenUsage `json:"by_day,omitempty"`
+}
+
 // AnalysisResult from analyze_product tool
 type AnalysisResult struct {
 	CurrentData   ProductData `json:"current_data"`

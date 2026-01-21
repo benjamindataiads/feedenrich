@@ -439,3 +439,98 @@ func (q *Queries) ResetPrompt(ctx context.Context, id string) error {
 	// For now, we'll handle this in the handler by re-inserting default
 	return nil
 }
+
+// Token usage operations
+
+// RecordTokenUsage records or updates token usage for a model on a given date
+func (q *Queries) RecordTokenUsage(ctx context.Context, model string, promptTokens, completionTokens int, costUSD float64) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO token_usage (date, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, api_calls)
+		VALUES (CURRENT_DATE, $1, $2, $3, $4, $5, 1)
+		ON CONFLICT (date, model) DO UPDATE SET
+			prompt_tokens = token_usage.prompt_tokens + EXCLUDED.prompt_tokens,
+			completion_tokens = token_usage.completion_tokens + EXCLUDED.completion_tokens,
+			total_tokens = token_usage.total_tokens + EXCLUDED.total_tokens,
+			cost_usd = token_usage.cost_usd + EXCLUDED.cost_usd,
+			api_calls = token_usage.api_calls + 1,
+			updated_at = NOW()
+	`, model, promptTokens, completionTokens, promptTokens+completionTokens, costUSD)
+	return err
+}
+
+// GetTokenUsageStats returns aggregated token usage statistics
+func (q *Queries) GetTokenUsageStats(ctx context.Context, days int) (*models.TokenUsageStats, error) {
+	stats := &models.TokenUsageStats{}
+
+	// Get totals
+	err := q.pool.QueryRow(ctx, `
+		SELECT 
+			COALESCE(SUM(prompt_tokens), 0),
+			COALESCE(SUM(completion_tokens), 0),
+			COALESCE(SUM(total_tokens), 0),
+			COALESCE(SUM(cost_usd), 0),
+			COALESCE(SUM(api_calls), 0)
+		FROM token_usage
+		WHERE date >= CURRENT_DATE - $1::integer
+	`, days).Scan(&stats.TotalPromptTokens, &stats.TotalCompletionTokens, &stats.TotalTokens, &stats.TotalCostUSD, &stats.TotalAPICalls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get by model
+	rows, err := q.pool.Query(ctx, `
+		SELECT 
+			model,
+			SUM(prompt_tokens) as prompt_tokens,
+			SUM(completion_tokens) as completion_tokens,
+			SUM(total_tokens) as total_tokens,
+			SUM(cost_usd) as cost_usd,
+			SUM(api_calls) as api_calls
+		FROM token_usage
+		WHERE date >= CURRENT_DATE - $1::integer
+		GROUP BY model
+		ORDER BY total_tokens DESC
+	`, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var u models.TokenUsage
+		if err := rows.Scan(&u.Model, &u.PromptTokens, &u.CompletionTokens, &u.TotalTokens, &u.CostUSD, &u.APICalls); err != nil {
+			return nil, err
+		}
+		stats.ByModel = append(stats.ByModel, u)
+	}
+
+	// Get by day (last N days)
+	rows2, err := q.pool.Query(ctx, `
+		SELECT 
+			date::text,
+			SUM(prompt_tokens) as prompt_tokens,
+			SUM(completion_tokens) as completion_tokens,
+			SUM(total_tokens) as total_tokens,
+			SUM(cost_usd) as cost_usd,
+			SUM(api_calls) as api_calls
+		FROM token_usage
+		WHERE date >= CURRENT_DATE - $1::integer
+		GROUP BY date
+		ORDER BY date DESC
+		LIMIT 30
+	`, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows2.Close()
+
+	for rows2.Next() {
+		var u models.TokenUsage
+		if err := rows2.Scan(&u.Date, &u.PromptTokens, &u.CompletionTokens, &u.TotalTokens, &u.CostUSD, &u.APICalls); err != nil {
+			return nil, err
+		}
+		stats.ByDay = append(stats.ByDay, u)
+	}
+
+	return stats, nil
+}
