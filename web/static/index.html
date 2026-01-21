@@ -142,107 +142,176 @@
             </div>
         </div>
 
-        <!-- Product Detail Modal -->
-        <div x-show="selectedProduct" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" @click.self="selectedProduct = null">
-            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                    <h3 class="font-semibold text-lg">Product: <span x-text="selectedProduct?.external_id"></span></h3>
-                    <button @click="selectedProduct = null" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <!-- Product Detail Modal - Full Screen 3 Columns -->
+        <div x-show="selectedProduct" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl w-[95vw] h-[95vh] overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                    <div>
+                        <h3 class="font-bold text-xl">Product Enrichment View</h3>
+                        <p class="text-blue-100 text-sm">
+                            <span x-text="selectedProduct?.external_id"></span> • 
+                            <span x-text="getProductTitle(selectedProduct)"></span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button @click="enrichProduct(selectedProduct)" 
+                                :disabled="enrichingProduct === selectedProduct?.id"
+                                class="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50 flex items-center gap-2">
+                            <span x-show="enrichingProduct !== selectedProduct?.id">🤖 Enrich</span>
+                            <span x-show="enrichingProduct === selectedProduct?.id" class="pulse">⏳ Enriching...</span>
+                        </button>
+                        <button @click="selectedProduct = null" class="text-white hover:text-blue-200 text-3xl">&times;</button>
+                    </div>
                 </div>
                 
-                <div class="p-4 overflow-y-auto flex-1 space-y-4">
-                    <!-- Current Data -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <h4 class="font-medium text-gray-700 mb-2">📦 Raw Data</h4>
-                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="formatJSON(selectedProduct?.raw_data)"></pre>
+                <!-- 3 Column Layout -->
+                <div class="flex-1 overflow-hidden grid grid-cols-3 divide-x">
+                    <!-- Column 1: Before (Original Attributes) -->
+                    <div class="flex flex-col overflow-hidden">
+                        <div class="p-3 bg-red-50 border-b">
+                            <h4 class="font-bold text-red-800 flex items-center gap-2">
+                                📦 BEFORE (Original)
+                            </h4>
+                            <p class="text-xs text-red-600">Raw data from feed</p>
                         </div>
-                        <div>
-                            <h4 class="font-medium text-gray-700 mb-2">✨ Current Data</h4>
-                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="formatJSON(selectedProduct?.current_data)"></pre>
-                        </div>
-                    </div>
-
-                    <!-- Agent Trace -->
-                    <div x-show="agentTrace && agentTrace.steps && agentTrace.steps.length > 0">
-                        <h4 class="font-medium text-gray-700 mb-2">🤖 Agent Trace</h4>
-                        <div class="space-y-2 max-h-64 overflow-y-auto">
-                            <template x-for="(step, i) in agentTrace?.steps || []" :key="i">
-                                <div class="border rounded p-3 bg-gray-50">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Step <span x-text="step.step_number"></span></span>
-                                        <span x-show="step.tool_name" class="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded" x-text="step.tool_name"></span>
-                                        <span class="text-xs text-gray-400" x-text="step.duration_ms + 'ms'"></span>
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <div class="space-y-2">
+                                <template x-for="[key, value] in getProductAttributes(selectedProduct?.raw_data)" :key="key">
+                                    <div class="border rounded p-2 bg-white">
+                                        <div class="text-xs font-medium text-gray-500 uppercase" x-text="key"></div>
+                                        <div class="text-sm mt-1" :class="value ? 'text-gray-800' : 'text-gray-400 italic'" 
+                                             x-text="value || '(empty)'"></div>
                                     </div>
-                                    <p x-show="step.thought" class="text-sm text-gray-700" x-text="step.thought"></p>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Proposals -->
-                    <div x-show="productProposals.length > 0">
-                        <h4 class="font-medium text-gray-700 mb-2">📝 Proposals (<span x-text="productProposals.length"></span>)</h4>
-                        <div class="space-y-3">
-                            <template x-for="prop in productProposals" :key="prop.id">
-                                <div class="border rounded p-4 bg-white shadow-sm">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div>
-                                            <span class="font-medium text-gray-800" x-text="prop.field"></span>
-                                            <span class="ml-2 text-xs px-2 py-0.5 rounded"
-                                                  :class="{
-                                                    'bg-green-100 text-green-800': prop.risk_level === 'low',
-                                                    'bg-yellow-100 text-yellow-800': prop.risk_level === 'medium',
-                                                    'bg-red-100 text-red-800': prop.risk_level === 'high'
-                                                  }"
-                                                  x-text="prop.risk_level + ' risk'"></span>
-                                            <span class="ml-2 text-xs text-gray-500" x-text="(prop.confidence * 100).toFixed(0) + '% confidence'"></span>
+                    <!-- Column 2: Analysis & Proposals -->
+                    <div class="flex flex-col overflow-hidden">
+                        <div class="p-3 bg-yellow-50 border-b">
+                            <h4 class="font-bold text-yellow-800 flex items-center gap-2">
+                                🔍 ANALYSIS & PROPOSALS
+                            </h4>
+                            <p class="text-xs text-yellow-600" x-text="productProposals.length + ' proposals'"></p>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <div x-show="productProposals.length === 0" class="text-center py-8 text-gray-500">
+                                <p class="text-4xl mb-2">🤖</p>
+                                <p>No proposals yet</p>
+                                <p class="text-sm">Click "Enrich" to analyze this product</p>
+                            </div>
+                            <div class="space-y-3">
+                                <template x-for="prop in productProposals" :key="prop.id">
+                                    <div class="border-2 rounded-lg p-3 bg-white shadow-sm"
+                                         :class="{
+                                            'border-green-300': prop.status === 'accepted',
+                                            'border-red-300': prop.status === 'rejected',
+                                            'border-yellow-300': prop.status === 'proposed'
+                                         }">
+                                        <!-- Field name & status -->
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div>
+                                                <span class="font-bold text-gray-800" x-text="prop.field"></span>
+                                                <span class="ml-2 text-xs px-2 py-0.5 rounded"
+                                                      :class="{
+                                                        'bg-green-100 text-green-800': prop.risk_level === 'low',
+                                                        'bg-yellow-100 text-yellow-800': prop.risk_level === 'medium',
+                                                        'bg-red-100 text-red-800': prop.risk_level === 'high'
+                                                      }"
+                                                      x-text="prop.risk_level"></span>
+                                            </div>
+                                            <span class="text-xs text-gray-500" x-text="(prop.confidence * 100).toFixed(0) + '%'"></span>
                                         </div>
-                                        <div class="flex gap-2" x-show="prop.status === 'proposed'">
-                                            <button @click="updateProposal(prop.id, 'accept')" class="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Accept</button>
-                                            <button @click="updateProposal(prop.id, 'reject')" class="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Reject</button>
+                                        
+                                        <!-- Change visualization -->
+                                        <div class="space-y-1 text-sm">
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-red-500 font-mono">-</span>
+                                                <span class="diff-remove px-1 rounded flex-1" x-text="prop.before_value || '(empty)'"></span>
+                                            </div>
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-green-500 font-mono">+</span>
+                                                <span class="diff-add px-1 rounded flex-1" x-text="prop.after_value"></span>
+                                            </div>
                                         </div>
-                                        <span x-show="prop.status !== 'proposed'" class="text-xs px-2 py-1 rounded"
-                                              :class="prop.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-                                              x-text="prop.status"></span>
-                                    </div>
-                                    
-                                    <!-- Before / After -->
-                                    <div class="grid grid-cols-2 gap-4 mt-2">
-                                        <div>
-                                            <span class="text-xs text-gray-500">Before:</span>
-                                            <div class="diff-remove p-2 rounded mt-1 text-sm" x-text="prop.before_value || '(empty)'"></div>
-                                        </div>
-                                        <div>
-                                            <span class="text-xs text-gray-500">After:</span>
-                                            <div class="diff-add p-2 rounded mt-1 text-sm" x-text="prop.after_value"></div>
-                                        </div>
-                                    </div>
 
-                                    <!-- Sources -->
-                                    <div x-show="parseSources(prop.sources).length > 0" class="mt-2">
-                                        <span class="text-xs text-gray-500">Sources:</span>
-                                        <div class="flex flex-wrap gap-1 mt-1">
+                                        <!-- Sources -->
+                                        <div x-show="parseSources(prop.sources).length > 0" class="mt-2 text-xs">
+                                            <span class="text-gray-500">Sources:</span>
                                             <template x-for="src in parseSources(prop.sources)" :key="src.reference">
-                                                <a :href="src.reference" target="_blank" class="text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-0.5 rounded">
-                                                    🔗 <span x-text="src.type"></span>
-                                                </a>
+                                                <span class="ml-1 text-blue-600">🔗<span x-text="src.type"></span></span>
                                             </template>
                                         </div>
+
+                                        <!-- Actions -->
+                                        <div class="mt-3 flex gap-2" x-show="prop.status === 'proposed'">
+                                            <button @click="updateProposal(prop.id, 'accept')" 
+                                                    class="flex-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-medium">
+                                                ✓ Accept
+                                            </button>
+                                            <button @click="updateProposal(prop.id, 'reject')" 
+                                                    class="flex-1 text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 font-medium">
+                                                ✗ Reject
+                                            </button>
+                                        </div>
+                                        <div x-show="prop.status !== 'proposed'" class="mt-2 text-center">
+                                            <span class="text-xs px-3 py-1 rounded font-medium"
+                                                  :class="prop.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                                  x-text="prop.status === 'accepted' ? '✓ Accepted' : '✗ Rejected'"></span>
+                                        </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: After (Optimized Attributes) -->
+                    <div class="flex flex-col overflow-hidden">
+                        <div class="p-3 bg-green-50 border-b">
+                            <h4 class="font-bold text-green-800 flex items-center gap-2">
+                                ✨ AFTER (Optimized)
+                            </h4>
+                            <p class="text-xs text-green-600">With accepted proposals applied</p>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <div class="space-y-2">
+                                <template x-for="[key, value] in getOptimizedAttributes()" :key="key">
+                                    <div class="border rounded p-2" 
+                                         :class="hasProposalForField(key) ? 'bg-green-50 border-green-200' : 'bg-white'">
+                                        <div class="flex justify-between">
+                                            <span class="text-xs font-medium text-gray-500 uppercase" x-text="key"></span>
+                                            <span x-show="hasProposalForField(key)" class="text-xs text-green-600">✨ improved</span>
+                                        </div>
+                                        <div class="text-sm mt-1" :class="value ? 'text-gray-800' : 'text-gray-400 italic'" 
+                                             x-text="value || '(empty)'"></div>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-4 border-t bg-gray-50 flex justify-between">
-                    <button @click="enrichProduct(selectedProduct)" 
-                            :disabled="enrichingProduct === selectedProduct?.id"
-                            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-                        🤖 Enrich this product
-                    </button>
-                    <button @click="selectedProduct = null" class="text-gray-600 px-4 py-2">Close</button>
+                <!-- Footer -->
+                <div class="p-3 border-t bg-gray-50 flex justify-between items-center">
+                    <div class="text-sm text-gray-500">
+                        <span x-show="productProposals.length > 0">
+                            <span x-text="productProposals.filter(p => p.status === 'accepted').length"></span> accepted,
+                            <span x-text="productProposals.filter(p => p.status === 'rejected').length"></span> rejected,
+                            <span x-text="productProposals.filter(p => p.status === 'proposed').length"></span> pending
+                        </span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="acceptAllProposals()" 
+                                x-show="productProposals.filter(p => p.status === 'proposed').length > 0"
+                                class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">
+                            Accept All
+                        </button>
+                        <button @click="selectedProduct = null" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 text-sm">
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -481,6 +550,48 @@
                         }
                     }
                     return [];
+                },
+
+                getProductAttributes(data) {
+                    const parsed = this.parseData(data);
+                    // Sort keys alphabetically, prioritize important fields
+                    const priority = ['titre', 'title', 'description', 'marque', 'brand', 'prix', 'price', 'couleur', 'color', 'taille', 'size'];
+                    const entries = Object.entries(parsed);
+                    return entries.sort((a, b) => {
+                        const aIdx = priority.indexOf(a[0].toLowerCase());
+                        const bIdx = priority.indexOf(b[0].toLowerCase());
+                        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                        if (aIdx !== -1) return -1;
+                        if (bIdx !== -1) return 1;
+                        return a[0].localeCompare(b[0]);
+                    });
+                },
+
+                getOptimizedAttributes() {
+                    const raw = this.parseData(this.selectedProduct?.raw_data);
+                    const optimized = { ...raw };
+                    
+                    // Apply accepted proposals
+                    for (const prop of this.productProposals) {
+                        if (prop.status === 'accepted') {
+                            optimized[prop.field] = prop.after_value;
+                        }
+                    }
+                    
+                    return this.getProductAttributes(optimized);
+                },
+
+                hasProposalForField(field) {
+                    return this.productProposals.some(p => 
+                        p.field.toLowerCase() === field.toLowerCase() && p.status === 'accepted'
+                    );
+                },
+
+                async acceptAllProposals() {
+                    const pending = this.productProposals.filter(p => p.status === 'proposed');
+                    for (const prop of pending) {
+                        await this.updateProposal(prop.id, 'accept');
+                    }
                 }
             }
         }
