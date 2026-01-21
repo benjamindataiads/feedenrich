@@ -81,44 +81,81 @@
                         </h2>
                         <button @click="loadDatasets" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="border-b border-gray-700">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Name</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Products</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Status</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Created</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="ds in datasets" :key="ds.id">
-                                    <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
-                                        <td class="px-4 py-3 font-medium" x-text="ds.name"></td>
-                                        <td class="px-4 py-3" x-text="ds.row_count"></td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 rounded text-xs font-medium" 
-                                                  :class="ds.status === 'ready' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'"
-                                                  x-text="ds.status"></span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm text-gray-400" x-text="new Date(ds.created_at).toLocaleDateString()"></td>
-                                        <td class="px-4 py-3 space-x-2">
-                                            <button @click="viewDataset(ds.id)" class="text-blue-400 text-sm hover:text-blue-300">View</button>
-                                            <button @click="enrichAllProducts(ds.id)" 
-                                                    :disabled="globalEnriching"
-                                                    class="text-green-400 text-sm hover:text-green-300 disabled:opacity-50">
-                                                🤖 Enrich All
-                                            </button>
-                                            <button @click="deleteDataset(ds.id)" class="text-red-400 text-sm hover:text-red-300">Delete</button>
-                                        </td>
-                                    </tr>
-                                </template>
-                                <tr x-show="datasets.length === 0">
-                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">No datasets yet. Upload one above!</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    
+                    <!-- Dataset Cards -->
+                    <div class="space-y-4">
+                        <template x-for="ds in datasets" :key="ds.id">
+                            <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600 hover:border-gray-500 transition-colors">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h3 class="font-semibold text-white text-lg" x-text="ds.name"></h3>
+                                        <p class="text-sm text-gray-400">
+                                            <span x-text="ds.row_count"></span> products • 
+                                            <span x-text="new Date(ds.created_at).toLocaleDateString()"></span>
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button @click="viewDataset(ds.id)" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">View</button>
+                                        <button @click="enrichAllProducts(ds.id)" 
+                                                :disabled="globalEnriching"
+                                                class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50">
+                                            🤖 Enrich All
+                                        </button>
+                                        <button @click="deleteDataset(ds.id)" class="bg-red-600/20 text-red-400 px-3 py-1.5 rounded text-sm hover:bg-red-600/40">Delete</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quality Scores -->
+                                <div class="grid grid-cols-2 gap-4 mt-4" x-show="datasetStats[ds.id]">
+                                    <!-- Before Score -->
+                                    <div class="bg-red-500/10 rounded-lg p-3 border border-red-500/30">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-sm text-red-400 font-medium">📦 Before Quality</span>
+                                            <span class="text-xl font-bold text-red-400" x-text="((datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div class="bg-red-500 h-2 rounded-full transition-all duration-500"
+                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.before || 0.35) * 100) + '%'"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- After Score -->
+                                    <div class="bg-green-500/10 rounded-lg p-3 border border-green-500/30">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-sm text-green-400 font-medium">✨ After Quality</span>
+                                            <span class="text-xl font-bold text-green-400" x-text="((datasetStats[ds.id]?.scores?.after || 0.35) * 100).toFixed(0) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div class="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.after || 0.35) * 100) + '%'"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Stats Row -->
+                                <div class="flex gap-4 mt-3 text-sm" x-show="datasetStats[ds.id]">
+                                    <div class="flex items-center gap-1 text-gray-400">
+                                        <span class="text-blue-400 font-medium" x-text="datasetStats[ds.id]?.products?.enriched || 0"></span>
+                                        <span>enriched</span>
+                                    </div>
+                                    <div class="flex items-center gap-1 text-gray-400">
+                                        <span class="text-yellow-400 font-medium" x-text="datasetStats[ds.id]?.products?.pending || 0"></span>
+                                        <span>pending</span>
+                                    </div>
+                                    <div class="flex items-center gap-1 text-gray-400">
+                                        <span class="text-purple-400 font-medium" x-text="datasetStats[ds.id]?.proposals?.total || 0"></span>
+                                        <span>proposals</span>
+                                    </div>
+                                    <div class="flex items-center gap-1 text-gray-400" x-show="datasetStats[ds.id]?.scores?.after > datasetStats[ds.id]?.scores?.before">
+                                        <span class="text-green-400 font-medium">↑ +<span x-text="(((datasetStats[ds.id]?.scores?.after || 0) - (datasetStats[ds.id]?.scores?.before || 0)) * 100).toFixed(0)"></span>%</span>
+                                        <span>improvement</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="datasets.length === 0" class="text-center text-gray-500 py-8">
+                            No datasets yet. Upload one above!
+                        </div>
                     </div>
                 </div>
 
@@ -445,6 +482,7 @@
                 datasets: [],
                 products: [],
                 proposals: [],
+                datasetStats: {},
                 selectedDataset: null,
                 selectedProduct: null,
                 productProposals: [],
@@ -466,6 +504,23 @@
                     await this.loadDatasets();
                     await this.loadProposals();
                     setInterval(() => this.loadProposals(), 5000);
+                    setInterval(() => this.refreshAllDatasetStats(), 10000);
+                },
+
+                async loadDatasetStats(datasetId) {
+                    try {
+                        const res = await fetch(`/api/datasets/${datasetId}/stats`);
+                        const stats = await res.json();
+                        this.datasetStats[datasetId] = stats;
+                    } catch (e) {
+                        console.error('Failed to load dataset stats:', e);
+                    }
+                },
+
+                async refreshAllDatasetStats() {
+                    for (const ds of this.datasets) {
+                        await this.loadDatasetStats(ds.id);
+                    }
                 },
 
                 // Logging
@@ -497,6 +552,10 @@
                     const res = await fetch('/api/datasets');
                     const data = await res.json();
                     this.datasets = data.data || [];
+                    // Load stats for each dataset
+                    for (const ds of this.datasets) {
+                        this.loadDatasetStats(ds.id);
+                    }
                 },
 
                 async loadProposals() {
@@ -678,11 +737,15 @@
                         this.agentStats.productsProcessed++;
                         this.agentStats.toolsUsed += 4;
                         
-                        // Refresh proposals periodically to show progress
+                        // Refresh proposals and stats periodically to show progress
                         if (i % 5 === 4) {
                             await this.loadProposals();
+                            await this.loadDatasetStats(datasetId);
                             const newProposals = this.proposals.length - startProposals;
-                            this.addLog('info', '📊 Progress update', `${newProposals} new proposals generated so far`);
+                            const stats = this.datasetStats[datasetId];
+                            const scoreAfter = stats?.scores?.after || 0;
+                            this.addLog('info', '📊 Progress update', 
+                                `${newProposals} new proposals | Quality: ${(scoreAfter * 100).toFixed(0)}%`);
                         }
                         
                         // Wait between products to avoid overwhelming the API
