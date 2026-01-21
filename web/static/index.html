@@ -53,6 +53,12 @@
                             :class="currentTab === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
                         📊 Dashboard
                     </button>
+                    <button @click="currentTab = 'products'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'products' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        📦 Products
+                        <span x-show="products.length > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 rounded-full" x-text="products.length"></span>
+                    </button>
                     <button @click="currentTab = 'validation'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
                             :class="currentTab === 'validation' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
@@ -102,20 +108,21 @@
                     </form>
                 </div>
 
-                <!-- Datasets List -->
+                <!-- Datasets with Quality Dashboard -->
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold flex items-center gap-2">
-                            <span>📊</span> Datasets
+                            <span>📊</span> Datasets & Quality Metrics
                         </h2>
-                        <button @click="loadDatasets" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
+                        <button @click="loadDatasets(); refreshAllDatasetStats()" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
                     </div>
                     
-                    <!-- Dataset Cards -->
-                    <div class="space-y-4">
+                    <!-- Dataset Cards with Detailed Scores -->
+                    <div class="space-y-6">
                         <template x-for="ds in datasets" :key="ds.id">
-                            <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600 hover:border-gray-500 transition-colors">
-                                <div class="flex justify-between items-start mb-3">
+                            <div class="bg-gray-700/30 rounded-lg p-5 border border-gray-600">
+                                <!-- Header -->
+                                <div class="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 class="font-semibold text-white text-lg" x-text="ds.name"></h3>
                                         <p class="text-sm text-gray-400">
@@ -124,7 +131,7 @@
                                         </p>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button @click="viewDataset(ds.id)" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">View</button>
+                                        <button @click="currentTab = 'products'; viewDataset(ds.id)" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">📦 Products</button>
                                         <button @click="enrichAllProducts(ds.id)" 
                                                 :disabled="globalEnriching"
                                                 class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50">
@@ -134,136 +141,102 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Quality Scores -->
-                                <div class="grid grid-cols-2 gap-4 mt-4" x-show="datasetStats[ds.id]">
-                                    <!-- Before Score -->
-                                    <div class="bg-red-500/10 rounded-lg p-3 border border-red-500/30">
+                                <!-- Quality Score Cards -->
+                                <div class="grid grid-cols-4 gap-4 mb-4" x-show="datasetStats[ds.id]">
+                                    <!-- Processing Progress -->
+                                    <div class="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
                                         <div class="flex justify-between items-center mb-2">
-                                            <span class="text-sm text-red-400 font-medium">📦 Before Quality</span>
-                                            <span class="text-xl font-bold text-red-400" x-text="((datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0) + '%'"></span>
+                                            <span class="text-xs text-blue-400 font-medium">⚙️ Progress</span>
+                                            <span class="text-lg font-bold text-blue-400" x-text="getProcessingPercent(ds.id) + '%'"></span>
                                         </div>
-                                        <div class="w-full bg-gray-700 rounded-full h-2">
-                                            <div class="bg-red-500 h-2 rounded-full transition-all duration-500"
-                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.before || 0.35) * 100) + '%'"></div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
+                                            <div class="bg-blue-500 h-2 rounded-full transition-all"
+                                                 :style="'width: ' + getProcessingPercent(ds.id) + '%'"></div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            <span x-text="datasetStats[ds.id]?.products?.enriched || 0"></span> / <span x-text="ds.row_count"></span> products treated
                                         </div>
                                     </div>
-                                    
-                                    <!-- After Score -->
-                                    <div class="bg-green-500/10 rounded-lg p-3 border border-green-500/30">
+
+                                    <!-- Before Score -->
+                                    <div class="bg-red-500/10 rounded-lg p-4 border border-red-500/30">
                                         <div class="flex justify-between items-center mb-2">
-                                            <span class="text-sm text-green-400 font-medium">✨ After Quality</span>
-                                            <span class="text-xl font-bold text-green-400" x-text="((datasetStats[ds.id]?.scores?.after || 0.35) * 100).toFixed(0) + '%'"></span>
+                                            <span class="text-xs text-red-400 font-medium">📦 Before</span>
+                                            <span class="text-lg font-bold text-red-400" x-text="((datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0) + '%'"></span>
                                         </div>
-                                        <div class="w-full bg-gray-700 rounded-full h-2">
-                                            <div class="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                        <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
+                                            <div class="bg-red-500 h-2 rounded-full"
+                                                 :style="'width: ' + ((datasetStats[ds.id]?.scores?.before || 0.35) * 100) + '%'"></div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">Original data quality</div>
+                                    </div>
+                                    
+                                    <!-- After Score (Weighted) -->
+                                    <div class="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-xs text-green-400 font-medium">✨ After (Weighted)</span>
+                                            <span class="text-lg font-bold text-green-400" x-text="getWeightedAfterScore(ds.id) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
+                                            <div class="bg-green-500 h-2 rounded-full"
+                                                 :style="'width: ' + getWeightedAfterScore(ds.id) + '%'"></div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">= (enriched × after + pending × before) / total</div>
+                                    </div>
+
+                                    <!-- Potential Score -->
+                                    <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-xs text-purple-400 font-medium">🎯 Potential</span>
+                                            <span class="text-lg font-bold text-purple-400" x-text="((datasetStats[ds.id]?.scores?.after || 0.35) * 100).toFixed(0) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
+                                            <div class="bg-purple-500 h-2 rounded-full"
                                                  :style="'width: ' + ((datasetStats[ds.id]?.scores?.after || 0.35) * 100) + '%'"></div>
                                         </div>
+                                        <div class="text-xs text-gray-500">If all products enriched</div>
                                     </div>
                                 </div>
                                 
                                 <!-- Stats Row -->
-                                <div class="flex gap-4 mt-3 text-sm" x-show="datasetStats[ds.id]">
-                                    <div class="flex items-center gap-1 text-gray-400">
-                                        <span class="text-blue-400 font-medium" x-text="datasetStats[ds.id]?.products?.enriched || 0"></span>
-                                        <span>enriched</span>
+                                <div class="flex gap-6 text-sm bg-gray-800/50 rounded-lg p-3" x-show="datasetStats[ds.id]">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                        <span class="text-green-400 font-medium" x-text="datasetStats[ds.id]?.products?.enriched || 0"></span>
+                                        <span class="text-gray-500">enriched</span>
                                     </div>
-                                    <div class="flex items-center gap-1 text-gray-400">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
                                         <span class="text-yellow-400 font-medium" x-text="datasetStats[ds.id]?.products?.pending || 0"></span>
-                                        <span>pending</span>
+                                        <span class="text-gray-500">pending</span>
                                     </div>
-                                    <div class="flex items-center gap-1 text-gray-400">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-purple-500"></span>
                                         <span class="text-purple-400 font-medium" x-text="datasetStats[ds.id]?.proposals?.total || 0"></span>
-                                        <span>proposals</span>
+                                        <span class="text-gray-500">proposals</span>
                                     </div>
-                                    <div class="flex items-center gap-1 text-gray-400" x-show="datasetStats[ds.id]?.scores?.after > datasetStats[ds.id]?.scores?.before">
-                                        <span class="text-green-400 font-medium">↑ +<span x-text="(((datasetStats[ds.id]?.scores?.after || 0) - (datasetStats[ds.id]?.scores?.before || 0)) * 100).toFixed(0)"></span>%</span>
-                                        <span>improvement</span>
+                                    <div class="flex items-center gap-2" x-show="getProcessingPercent(ds.id) > 0 && getProcessingPercent(ds.id) < 100">
+                                        <span class="text-blue-400">↑</span>
+                                        <span class="text-blue-400 font-medium">+<span x-text="(getWeightedAfterScore(ds.id) - (datasetStats[ds.id]?.scores?.before || 0.35) * 100).toFixed(0)"></span>%</span>
+                                        <span class="text-gray-500">current improvement</span>
                                     </div>
                                 </div>
+
+                                <!-- Score Calculation Explanation -->
+                                <details class="mt-3">
+                                    <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-400">ℹ️ How scores are calculated</summary>
+                                    <div class="mt-2 text-xs text-gray-500 bg-gray-800/50 rounded p-3 space-y-1">
+                                        <p><strong>Before:</strong> Average agent_readiness_score of all products in original state</p>
+                                        <p><strong>After (Weighted):</strong> (enriched_count × avg_enriched_score + pending_count × before_score) / total_count</p>
+                                        <p><strong>Potential:</strong> Target score if 100% of products were enriched</p>
+                                        <p class="text-gray-400 mt-2">The weighted score reflects actual current quality - it only improves as more products are processed.</p>
+                                    </div>
+                                </details>
                             </div>
                         </template>
                         <div x-show="datasets.length === 0" class="text-center text-gray-500 py-8">
                             No datasets yet. Upload one above!
                         </div>
-                    </div>
-                </div>
-
-                <!-- Products (when dataset selected) -->
-                <div x-show="selectedDataset" class="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-semibold flex items-center gap-2">
-                            <span>📦</span> Products
-                            <span class="text-sm text-gray-400" x-text="'(' + products.length + ' total)'"></span>
-                        </h2>
-                        <div class="flex gap-2">
-                            <button @click="enrichAllProducts(selectedDataset)" 
-                                    :disabled="globalEnriching"
-                                    class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
-                                <span x-show="!globalEnriching">🤖 Enrich All Products</span>
-                                <span x-show="globalEnriching" class="pulse">⏳ Enriching...</span>
-                            </button>
-                            <button @click="selectedDataset = null; products = []" class="text-gray-400 text-sm hover:text-gray-300">✕ Close</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Progress bar for global enrichment -->
-                    <div x-show="globalEnriching" class="mb-4 bg-gray-700 rounded-full h-2 overflow-hidden">
-                        <div class="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-500"
-                             :style="'width: ' + enrichProgress + '%'"></div>
-                    </div>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="border-b border-gray-700">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">ID</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Title</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Status</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Score</th>
-                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="p in products.slice(0, 50)" :key="p.id">
-                                    <tr class="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
-                                        :class="currentEnrichingProduct === p.id ? 'bg-blue-900/20 glow' : ''">
-                                        <td class="px-4 py-3 font-mono text-sm text-gray-300" x-text="p.external_id"></td>
-                                        <td class="px-4 py-3 max-w-xs truncate" x-text="getProductTitle(p)"></td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 rounded text-xs font-medium"
-                                                  :class="{
-                                                    'bg-green-500/20 text-green-400': p.status === 'enriched',
-                                                    'bg-blue-500/20 text-blue-400': currentEnrichingProduct === p.id,
-                                                    'bg-gray-600/50 text-gray-400': p.status === 'pending' && currentEnrichingProduct !== p.id
-                                                  }">
-                                                <span x-show="currentEnrichingProduct === p.id" class="pulse">🤖 analyzing...</span>
-                                                <span x-show="currentEnrichingProduct !== p.id" x-text="p.status"></span>
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <div x-show="p.agent_readiness_score" class="flex items-center gap-2">
-                                                <div class="w-16 bg-gray-700 rounded-full h-2">
-                                                    <div class="h-2 rounded-full transition-all"
-                                                         :class="p.agent_readiness_score > 0.7 ? 'bg-green-500' : p.agent_readiness_score > 0.5 ? 'bg-yellow-500' : 'bg-red-500'"
-                                                         :style="'width: ' + (p.agent_readiness_score * 100) + '%'"></div>
-                                                </div>
-                                                <span class="text-sm" x-text="(p.agent_readiness_score * 100).toFixed(0) + '%'"></span>
-                                            </div>
-                                            <span x-show="!p.agent_readiness_score" class="text-gray-500">-</span>
-                                        </td>
-                                        <td class="px-4 py-3 space-x-2">
-                                            <button @click="enrichProduct(p)" 
-                                                    :disabled="currentEnrichingProduct === p.id"
-                                                    class="text-green-400 text-sm hover:text-green-300 disabled:opacity-50">🤖 Enrich</button>
-                                            <button @click="viewProduct(p)" class="text-blue-400 text-sm hover:text-blue-300">View</button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                        <p x-show="products.length > 50" class="text-sm text-gray-500 mt-4 text-center">
-                            Showing 50 of <span x-text="products.length"></span> products
-                        </p>
                     </div>
                 </div>
 
@@ -409,9 +382,157 @@
                 
                 </div><!-- End Dashboard Tab -->
 
+                <!-- ============ PRODUCTS TAB ============ -->
+                <div x-show="currentTab === 'products'" class="space-y-6">
+                    
+                    <!-- Dataset Selector -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <span>📦</span> Products
+                            </h2>
+                            <div class="flex items-center gap-4">
+                                <select x-model="selectedDataset" @change="if(selectedDataset) viewDataset(selectedDataset)" 
+                                        class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm">
+                                    <option value="">Select a dataset</option>
+                                    <template x-for="ds in datasets" :key="ds.id">
+                                        <option :value="ds.id" x-text="ds.name + ' (' + ds.row_count + ' products)'"></option>
+                                    </template>
+                                </select>
+                                <button @click="enrichAllProducts(selectedDataset)" 
+                                        :disabled="!selectedDataset || globalEnriching"
+                                        class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                                    <span x-show="!globalEnriching">🤖 Enrich All</span>
+                                    <span x-show="globalEnriching" class="pulse">⏳ Enriching...</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Progress bar for global enrichment -->
+                        <div x-show="globalEnriching" class="mb-4">
+                            <div class="flex justify-between text-sm text-gray-400 mb-1">
+                                <span>Processing...</span>
+                                <span x-text="enrichProgress + '%'"></span>
+                            </div>
+                            <div class="bg-gray-700 rounded-full h-2 overflow-hidden">
+                                <div class="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-500"
+                                     :style="'width: ' + enrichProgress + '%'"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Products Table -->
+                    <div x-show="selectedDataset && products.length > 0" class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="text-sm text-gray-400">
+                                Showing <span class="text-white font-medium" x-text="Math.min(100, products.length)"></span> of 
+                                <span class="text-white font-medium" x-text="products.length"></span> products
+                            </div>
+                            <button @click="refreshProducts()" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="border-b border-gray-700">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Image</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">ID</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Title</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Status</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Score</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Proposals</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-400">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="p in products.slice(0, 100)" :key="p.id">
+                                        <tr class="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                                            :class="currentEnrichingProduct === p.id ? 'bg-blue-900/20 glow' : ''">
+                                            <td class="px-4 py-3">
+                                                <div class="w-10 h-10 bg-gray-700 rounded overflow-hidden">
+                                                    <img :src="getProductImage(p)" 
+                                                         @error="$event.target.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23374151%22 width=%2240%22 height=%2240%22/><text x=%2220%22 y=%2225%22 text-anchor=%22middle%22 fill=%22%239CA3AF%22 font-size=%2212%22>📦</text></svg>'"
+                                                         class="w-full h-full object-cover">
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 font-mono text-sm text-gray-300" x-text="p.external_id"></td>
+                                            <td class="px-4 py-3 max-w-xs truncate" x-text="getProductTitle(p)"></td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 rounded text-xs font-medium"
+                                                      :class="{
+                                                        'bg-green-500/20 text-green-400': p.status === 'enriched',
+                                                        'bg-blue-500/20 text-blue-400': currentEnrichingProduct === p.id,
+                                                        'bg-gray-600/50 text-gray-400': p.status === 'pending' && currentEnrichingProduct !== p.id
+                                                      }">
+                                                    <span x-show="currentEnrichingProduct === p.id" class="pulse">🤖 analyzing...</span>
+                                                    <span x-show="currentEnrichingProduct !== p.id" x-text="p.status"></span>
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div x-show="p.agent_readiness_score" class="flex items-center gap-2">
+                                                    <div class="w-16 bg-gray-700 rounded-full h-2">
+                                                        <div class="h-2 rounded-full transition-all"
+                                                             :class="p.agent_readiness_score > 0.7 ? 'bg-green-500' : p.agent_readiness_score > 0.5 ? 'bg-yellow-500' : 'bg-red-500'"
+                                                             :style="'width: ' + (p.agent_readiness_score * 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="text-sm" x-text="(p.agent_readiness_score * 100).toFixed(0) + '%'"></span>
+                                                </div>
+                                                <span x-show="!p.agent_readiness_score" class="text-gray-500">-</span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="text-sm text-purple-400" x-text="getProductProposalCount(p.id)"></span>
+                                            </td>
+                                            <td class="px-4 py-3 space-x-2">
+                                                <button @click="enrichProduct(p)" 
+                                                        :disabled="currentEnrichingProduct === p.id"
+                                                        class="text-green-400 text-sm hover:text-green-300 disabled:opacity-50">🤖 Enrich</button>
+                                                <button @click="viewProduct(p)" class="text-blue-400 text-sm hover:text-blue-300">View</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p x-show="products.length > 100" class="text-sm text-gray-500 mt-4 text-center">
+                            Showing 100 of <span x-text="products.length"></span> products
+                        </p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="!selectedDataset || products.length === 0" class="bg-gray-800 rounded-xl p-12 border border-gray-700 text-center">
+                        <div class="text-6xl mb-4">📦</div>
+                        <h3 class="text-xl font-bold mb-2">Select a Dataset</h3>
+                        <p class="text-gray-400">Choose a dataset above to view and manage its products</p>
+                    </div>
+                </div><!-- End Products Tab -->
+
                 <!-- ============ VALIDATION TAB ============ -->
                 <div x-show="currentTab === 'validation'" x-init="initValidation()" class="space-y-6">
                     
+                    <!-- Quick Actions -->
+                    <div class="bg-gradient-to-r from-green-600/20 to-blue-600/20 rounded-xl p-6 border border-green-500/30">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-xl font-bold flex items-center gap-2">⚡ Validation Rapide</h2>
+                                <p class="text-gray-400 text-sm mt-1">
+                                    <span x-text="pendingValidationCount"></span> proposals en attente de validation
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button @click="validateAllProposals('reject')" 
+                                        :disabled="pendingValidationCount === 0"
+                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm">
+                                    ❌ Rejeter tout
+                                </button>
+                                <button @click="validateAllProposals('accept')" 
+                                        :disabled="pendingValidationCount === 0"
+                                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium">
+                                    ✅ Valider tout (<span x-text="pendingValidationCount"></span>)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Sampling Controls -->
                     <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
                         <div class="flex justify-between items-center mb-6">
@@ -2201,6 +2322,62 @@
                     if (!sources) return [];
                     if (Array.isArray(sources)) return sources;
                     try { return JSON.parse(sources); } catch { return []; }
+                },
+
+                // Dashboard score calculations
+                getProcessingPercent(datasetId) {
+                    const stats = this.datasetStats[datasetId];
+                    if (!stats) return 0;
+                    const ds = this.datasets.find(d => d.id === datasetId);
+                    if (!ds || ds.row_count === 0) return 0;
+                    return Math.round((stats.products?.enriched || 0) / ds.row_count * 100);
+                },
+
+                getWeightedAfterScore(datasetId) {
+                    const stats = this.datasetStats[datasetId];
+                    if (!stats) return 35;
+                    const ds = this.datasets.find(d => d.id === datasetId);
+                    if (!ds || ds.row_count === 0) return 35;
+                    
+                    const enriched = stats.products?.enriched || 0;
+                    const pending = stats.products?.pending || ds.row_count;
+                    const beforeScore = stats.scores?.before || 0.35;
+                    const afterScore = stats.scores?.after || 0.35;
+                    
+                    // Weighted average: enriched products use after score, pending use before
+                    const weighted = (enriched * afterScore + pending * beforeScore) / ds.row_count;
+                    return Math.round(weighted * 100);
+                },
+
+                getProductProposalCount(productId) {
+                    return this.proposalsWithProducts.filter(p => p.product_id === productId).length;
+                },
+
+                async validateAllProposals(action) {
+                    const pending = this.proposalsWithProducts.filter(p => p.status === 'proposed');
+                    if (pending.length === 0) return;
+                    
+                    if (!confirm(`${action === 'accept' ? 'Valider' : 'Rejeter'} ${pending.length} proposals ?`)) return;
+                    
+                    this.addPipelineLog('info', 'Bulk validation', `${action === 'accept' ? 'Accepting' : 'Rejecting'} ${pending.length} proposals...`);
+                    
+                    try {
+                        const res = await fetch('/api/proposals/bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: action,
+                                only_status: 'proposed'
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        this.addPipelineLog('approved', 'Bulk validation complete', `${data.updated} proposals ${action === 'accept' ? 'accepted' : 'rejected'}`);
+                        await this.loadProposalsWithProducts();
+                        await this.refreshAllDatasetStats();
+                    } catch (e) {
+                        this.addPipelineLog('rejected', 'Bulk validation failed', e.message);
+                    }
                 },
 
                 // ============ PROMPTS MANAGEMENT ============
