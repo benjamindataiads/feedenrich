@@ -221,28 +221,50 @@ func toString(v interface{}) string {
 	}
 }
 
-// defaultGMCRules returns standard Google Merchant Center rules
+// defaultGMCRules returns standard Google Merchant Center rules (2025)
 func defaultGMCRules() []ValidationRule {
 	return []ValidationRule{
-		// Required fields
+		// === REQUIRED FIELDS ===
 		{ID: "gmc_id_required", Field: "id", Type: "required", Message: "Product ID is required", Severity: "error"},
 		{ID: "gmc_title_required", Field: "title", Type: "required", Message: "Title is required", Severity: "error"},
 		{ID: "gmc_description_required", Field: "description", Type: "required", Message: "Description is required", Severity: "error"},
 		{ID: "gmc_link_required", Field: "link", Type: "required", Message: "Product link is required", Severity: "error"},
 		{ID: "gmc_image_required", Field: "image_link", Type: "required", Message: "Image link is required", Severity: "error"},
 		{ID: "gmc_price_required", Field: "price", Type: "required", Message: "Price is required", Severity: "error"},
+		{ID: "gmc_availability_required", Field: "availability", Type: "required", Message: "Availability is required", Severity: "error"},
 
-		// Length constraints
+		// === LENGTH CONSTRAINTS ===
 		{ID: "gmc_title_min", Field: "title", Type: "min_length", Value: 30.0, Message: "Title should be at least 30 characters", Severity: "warning"},
 		{ID: "gmc_title_max", Field: "title", Type: "max_length", Value: 150.0, Message: "Title must not exceed 150 characters", Severity: "error"},
 		{ID: "gmc_description_min", Field: "description", Type: "min_length", Value: 50.0, Message: "Description should be at least 50 characters", Severity: "warning"},
 		{ID: "gmc_description_max", Field: "description", Type: "max_length", Value: 5000.0, Message: "Description must not exceed 5000 characters", Severity: "error"},
 
-		// URL validation
+		// === URL VALIDATION ===
 		{ID: "gmc_link_url", Field: "link", Type: "url", Message: "Product link must be a valid URL", Severity: "error"},
 		{ID: "gmc_image_url", Field: "image_link", Type: "url", Message: "Image link must be a valid URL", Severity: "error"},
 
-		// Forbidden words in title
-		{ID: "gmc_title_promo", Field: "title", Type: "forbidden_words", Value: []interface{}{"free shipping", "sale", "discount", "promo", "soldes", "-50%", "-30%", "livraison gratuite"}, Message: "Title must not contain promotional text", Severity: "error"},
+		// === FORBIDDEN CONTENT ===
+		{ID: "gmc_title_promo", Field: "title", Type: "forbidden_words", Value: []interface{}{"free shipping", "sale", "discount", "promo", "soldes", "-50%", "-30%", "-20%", "livraison gratuite", "gratuit", "offre", "promotion"}, Message: "Title must not contain promotional text", Severity: "error"},
+		{ID: "gmc_description_promo", Field: "description", Type: "forbidden_words", Value: []interface{}{"free shipping", "livraison gratuite", "click here", "buy now", "limited time"}, Message: "Description should not contain promotional calls to action", Severity: "warning"},
+
+		// === STRONGLY RECOMMENDED ===
+		{ID: "gmc_brand_recommended", Field: "brand", Type: "required", Message: "Brand is strongly recommended for most categories", Severity: "warning"},
+		{ID: "gmc_gtin_recommended", Field: "gtin", Type: "required", Message: "GTIN (EAN/UPC) is strongly recommended when available", Severity: "warning"},
+		{ID: "gmc_product_type_recommended", Field: "product_type", Type: "required", Message: "Product type helps with categorization", Severity: "info"},
+		{ID: "gmc_google_category_recommended", Field: "google_product_category", Type: "required", Message: "Google product category improves search relevance", Severity: "info"},
+
+		// === APPAREL-SPECIFIC (Required in US, UK, DE, JP, FR, BR) ===
+		{ID: "gmc_color_apparel", Field: "color", Type: "required", Message: "Color is required for apparel products", Severity: "warning"},
+		{ID: "gmc_gender_apparel", Field: "gender", Type: "required", Message: "Gender is required for apparel (male/female/unisex)", Severity: "warning"},
+		{ID: "gmc_age_group_apparel", Field: "age_group", Type: "required", Message: "Age group is required for apparel (adult/kids/infant/etc.)", Severity: "warning"},
+		{ID: "gmc_size_apparel", Field: "size", Type: "required", Message: "Size is required for clothing and shoes", Severity: "warning"},
+
+		// === VARIANT PRODUCTS ===
+		{ID: "gmc_item_group_variants", Field: "item_group_id", Type: "required", Message: "Item group ID required for product variants", Severity: "info"},
+
+		// === OPTIONAL BUT VALUABLE ===
+		{ID: "gmc_material_recommended", Field: "material", Type: "required", Message: "Material improves product discoverability", Severity: "info"},
+		{ID: "gmc_pattern_recommended", Field: "pattern", Type: "required", Message: "Pattern helps distinguish variants", Severity: "info"},
+		{ID: "gmc_condition_recommended", Field: "condition", Type: "required", Message: "Condition (new/used/refurbished) should be specified", Severity: "info"},
 	}
 }

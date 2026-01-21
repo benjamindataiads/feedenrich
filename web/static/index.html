@@ -1174,7 +1174,7 @@
                         </div>
 
                         <!-- Why This Architecture -->
-                        <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                        <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-8">
                             <h3 class="text-lg font-semibold mb-3 text-green-400">✅ What This Enables</h3>
                             <p class="text-sm text-gray-300 mb-3">The system can now say:</p>
                             <ul class="space-y-1 text-sm text-gray-400">
@@ -1185,6 +1185,111 @@
                                 <li>• Under <strong>which rule version</strong></li>
                                 <li>• And whether a <strong>human approved</strong> it</li>
                             </ul>
+                        </div>
+
+                        <!-- GMC Attributes Reference -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-blue-400">📋 Google Merchant Center Attributes (2025)</h3>
+                            
+                            <!-- Required -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-bold text-red-400 mb-2">🔴 REQUIRED ATTRIBUTES</h4>
+                                <div class="bg-gray-700/30 rounded-lg p-3 text-sm">
+                                    <table class="w-full">
+                                        <tbody class="divide-y divide-gray-600">
+                                            <tr><td class="py-1 font-mono text-blue-300">id</td><td class="py-1 text-gray-400">Unique product identifier (SKU)</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">title</td><td class="py-1 text-gray-400">Product name (30-150 chars)</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">description</td><td class="py-1 text-gray-400">Product description (50-5000 chars)</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">link</td><td class="py-1 text-gray-400">Product page URL</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">image_link</td><td class="py-1 text-gray-400">Main product image URL</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">price</td><td class="py-1 text-gray-400">Price with currency (e.g., "29.99 EUR")</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">availability</td><td class="py-1 text-gray-400">in_stock, out_of_stock, preorder, backorder</td></tr>
+                                            <tr><td class="py-1 font-mono text-blue-300">brand</td><td class="py-1 text-gray-400">Manufacturer/brand name</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Required for Apparel -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-bold text-orange-400 mb-2">👕 REQUIRED FOR APPAREL (US, UK, DE, JP, FR, BR)</h4>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-sm">
+                                    <table class="w-full">
+                                        <tbody class="divide-y divide-gray-600">
+                                            <tr><td class="py-1 font-mono text-orange-300">color</td><td class="py-1 text-gray-400">Standard color names (black, blue, red) - no hex codes</td></tr>
+                                            <tr><td class="py-1 font-mono text-orange-300">gender</td><td class="py-1 text-gray-400">male, female, unisex</td></tr>
+                                            <tr><td class="py-1 font-mono text-orange-300">age_group</td><td class="py-1 text-gray-400">newborn, infant, toddler, kids, adult</td></tr>
+                                            <tr><td class="py-1 font-mono text-orange-300">size</td><td class="py-1 text-gray-400">S, M, L, XL or numeric (8, 9.5)</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Strongly Recommended -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-bold text-yellow-400 mb-2">⭐ STRONGLY RECOMMENDED</h4>
+                                <div class="bg-gray-700/30 rounded-lg p-3 text-sm">
+                                    <table class="w-full">
+                                        <tbody class="divide-y divide-gray-600">
+                                            <tr><td class="py-1 font-mono text-yellow-300">gtin</td><td class="py-1 text-gray-400">EAN (13 digits), UPC (12 digits), ISBN</td></tr>
+                                            <tr><td class="py-1 font-mono text-yellow-300">mpn</td><td class="py-1 text-gray-400">Manufacturer Part Number (if no GTIN)</td></tr>
+                                            <tr><td class="py-1 font-mono text-yellow-300">google_product_category</td><td class="py-1 text-gray-400">Google taxonomy ID</td></tr>
+                                            <tr><td class="py-1 font-mono text-yellow-300">product_type</td><td class="py-1 text-gray-400">Your category hierarchy</td></tr>
+                                            <tr><td class="py-1 font-mono text-yellow-300">condition</td><td class="py-1 text-gray-400">new, used, refurbished</td></tr>
+                                            <tr><td class="py-1 font-mono text-yellow-300">item_group_id</td><td class="py-1 text-gray-400">Groups variants (same product, different size/color)</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Inferable Attributes -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-bold text-green-400 mb-2">🤖 INFERABLE ATTRIBUTES (AI can propose)</h4>
+                                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-sm">
+                                    <table class="w-full">
+                                        <tbody class="divide-y divide-gray-600">
+                                            <tr><td class="py-1 font-mono text-green-300">color</td><td class="py-1 text-gray-400">From image or title ("Blue T-Shirt" → blue)</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">material</td><td class="py-1 text-gray-400">cotton, polyester, leather, wool, denim, silk</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">pattern</td><td class="py-1 text-gray-400">solid, striped, floral, checkered, printed</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">gender</td><td class="py-1 text-gray-400">From product type or image styling</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">age_group</td><td class="py-1 text-gray-400">Default "adult" unless clearly kids product</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">size_type</td><td class="py-1 text-gray-400">regular, petite, plus, tall, maternity</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">size_system</td><td class="py-1 text-gray-400">US, UK, EU, FR, IT</td></tr>
+                                            <tr><td class="py-1 font-mono text-green-300">product_type</td><td class="py-1 text-gray-400">Build hierarchy from title/category</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Optional but Valuable -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-bold text-gray-400 mb-2">📦 OPTIONAL BUT VALUABLE</h4>
+                                <div class="bg-gray-700/30 rounded-lg p-3 text-sm">
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div><span class="font-mono text-gray-300">additional_image_link</span> - Up to 10 extra images</div>
+                                        <div><span class="font-mono text-gray-300">sale_price</span> - Discounted price</div>
+                                        <div><span class="font-mono text-gray-300">shipping_weight</span> - For shipping calc</div>
+                                        <div><span class="font-mono text-gray-300">product_weight</span> - Actual weight</div>
+                                        <div><span class="font-mono text-gray-300">product_length</span> - Dimensions</div>
+                                        <div><span class="font-mono text-gray-300">product_width</span> - Dimensions</div>
+                                        <div><span class="font-mono text-gray-300">product_height</span> - Dimensions</div>
+                                        <div><span class="font-mono text-gray-300">custom_label_0-4</span> - Campaign labels</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Title Best Practices -->
+                            <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                                <h4 class="text-sm font-bold text-blue-400 mb-3">📝 Title Optimization Template</h4>
+                                <div class="font-mono text-sm text-gray-300 bg-gray-800 rounded p-2 mb-3">
+                                    Brand + Gender + Product Type + Color + Size + Material
+                                </div>
+                                <div class="text-xs text-gray-400 space-y-1">
+                                    <p>✅ <strong>Good:</strong> "Nike Men's Dri-FIT Blue Running Shirt - Lightweight XL"</p>
+                                    <p>❌ <strong>Bad:</strong> "Blue Shirt" (too short, missing brand/type)</p>
+                                    <p>❌ <strong>Forbidden:</strong> "FREE SHIPPING! Blue Shirt -50% OFF" (promotional)</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div><!-- End Docs Tab -->

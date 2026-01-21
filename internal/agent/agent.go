@@ -135,7 +135,7 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 					MultiContent: []openai.ChatMessagePart{
 						{
 							Type: openai.ChatMessagePartTypeText,
-							Text: `Extract facts from this product image. Output JSON: {"color":"observed color","material":"if visible","style":"type/style","gender":"if obvious","observations":["other facts"]}. Only state what you clearly see.`,
+							Text: `Extract ALL GMC attributes from this image. Output JSON: {"color":"primary color","secondary_colors":[],"material":"if visible","pattern":"solid/striped/floral/etc","style":"casual/formal/sporty","gender":"male/female/unisex if obvious","age_group":"adult/kids if obvious","product_type":"what the product is","observations":["other facts"]}. Only state what you clearly see.`,
 						},
 						{
 							Type:     openai.ChatMessagePartTypeImageURL,
@@ -154,11 +154,49 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 	}
 
 	// Main optimization call
-	systemPrompt := `You are a GMC product data optimizer. Analyze and generate optimization proposals.
+	systemPrompt := `You are a GMC (Google Merchant Center) product data optimizer. Analyze and generate optimization proposals.
 
-OUTPUT FORMAT (JSON):
+=== GMC ATTRIBUTES REFERENCE (2025) ===
+
+REQUIRED ATTRIBUTES:
+- id: Unique product identifier
+- title: Product name (30-150 chars, include brand + type + key attributes)
+- description: Product description (50-5000 chars, informative)
+- link: Product page URL
+- image_link: Main product image URL
+- price: Product price with currency
+- availability: in_stock, out_of_stock, preorder, backorder
+- brand: Manufacturer/brand name (required for most categories)
+
+REQUIRED FOR APPAREL (US, UK, DE, JP, FR, BR):
+- color: Product color (required for apparel) - use standard names, no hex codes
+- gender: male, female, unisex (required for apparel)
+- age_group: newborn, infant, toddler, kids, adult (required for apparel)
+- size: Product size (required for clothing/shoes) - S, M, L, XL or numeric
+
+STRONGLY RECOMMENDED:
+- gtin: EAN/UPC/ISBN (13 digits for EAN, 12 for UPC)
+- mpn: Manufacturer Part Number (if no GTIN)
+- google_product_category: Google taxonomy ID
+- product_type: Your category hierarchy (e.g., "Apparel > Shirts > T-Shirts")
+- condition: new, used, refurbished (default: new)
+- item_group_id: Required for variants (same product, different size/color)
+
+OPTIONAL BUT VALUABLE:
+- material: Fabric/material (e.g., "cotton", "leather", "polyester")
+- pattern: Pattern name (e.g., "striped", "floral", "solid")
+- size_type: regular, petite, plus, tall, big, maternity
+- size_system: US, UK, EU, DE, FR, IT, AU, BR, CN, JP
+- additional_image_link: Up to 10 extra images
+- sale_price: Discounted price with sale dates
+- shipping_weight: For shipping calculations
+- product_weight: Actual product weight
+- product_length, product_width, product_height: Dimensions
+
+=== OUTPUT FORMAT (JSON) ===
 {
   "score": 0.65,
+  "missing_attributes": ["color", "gender", "age_group"],
   "proposals": [
     {
       "field": "title",
@@ -172,16 +210,44 @@ OUTPUT FORMAT (JSON):
   ]
 }
 
-RULES:
-1. ALWAYS optimize title if < 60 chars or missing brand/type/key attributes
-2. ALWAYS optimize description if < 100 chars or not informative  
-3. Fill missing GMC attributes: color, material, gender, size when inferable
-4. Use ONLY facts from provided data or image (NO invention)
-5. Be GENEROUS - propose improvements that could be rejected rather than miss opportunities
-6. Title template: Brand + Type + Key Attributes (color, size, material)
-7. Description: Benefits, specs, use cases (100-500 chars)
+=== OPTIMIZATION RULES ===
 
-Generate AT LEAST 2 proposals for any product with room for improvement.`
+1. TITLE OPTIMIZATION (ALWAYS check):
+   - Min 30 chars, optimal 60-150 chars
+   - Template: Brand + Gender + Product Type + Key Attributes (color, size, material)
+   - Front-load important keywords (first 70 chars visible in search)
+   - NO promotional text (free shipping, sale, discount, -50%)
+   
+2. DESCRIPTION OPTIMIZATION (ALWAYS check):
+   - Min 50 chars, optimal 100-500 chars
+   - Include: benefits, features, use cases, specifications
+   - NO promotional text or ALL CAPS
+
+3. MISSING ATTRIBUTES (ALWAYS propose if inferable):
+   - color: Infer from image or title/description
+   - gender: Infer from product type, title, or image
+   - age_group: Default to "adult" for non-kids products
+   - material: Infer from image or product type
+   - pattern: Infer from image (striped, solid, floral, etc.)
+   - size: Extract from title if present
+   - product_type: Build hierarchy from category/title
+   - google_product_category: Map to Google taxonomy
+
+4. CONFIDENCE LEVELS:
+   - HIGH (0.9+): Direct from feed data or clear image observation
+   - MEDIUM (0.7-0.9): Reasonably inferred from context
+   - LOW (0.5-0.7): Educated guess, needs human review
+
+5. RISK LEVELS:
+   - low: Text improvements, color from image, gender from obvious cues
+   - medium: Material inference, category mapping
+   - high: Technical specs, safety claims, compatibility → flag for human review
+
+=== CRITICAL RULES ===
+- NO INVENTION: Only use facts from feed data or image analysis
+- Be GENEROUS: Propose improvements that could be rejected rather than miss opportunities
+- Generate AT LEAST 2-3 proposals for any product with room for improvement
+- For APPAREL: ALWAYS check color, gender, age_group, size`
 
 	userPrompt := fmt.Sprintf("Product Data:\n%s%s\n\nGenerate optimization proposals.", string(product.RawData), imageContext)
 

@@ -226,56 +226,109 @@ func (p *FastPipeline) Run(ctx context.Context, product *models.Product) (*Pipel
 }
 
 func (p *FastPipeline) runCombinedOptimization(ctx context.Context, productData json.RawMessage, additionalContext string) (*FastPipelineOutput, error) {
-	systemPrompt := `You are a product data optimization expert for Google Merchant Center.
+	systemPrompt := `You are a product data optimization expert for Google Merchant Center (GMC).
 
-Your task: Analyze the product and generate optimization proposals.
+=== GMC ATTRIBUTES REFERENCE (2025) ===
 
-RESPONSIBILITIES:
-1. ANALYZE: Score data quality (0-1), identify missing/weak fields, violations
-2. OPTIMIZE: Generate concrete proposals for improvements
+REQUIRED ATTRIBUTES:
+- id: Unique product identifier
+- title: Product name (30-150 chars)
+- description: Product description (50-5000 chars)
+- link: Product page URL
+- image_link: Main product image URL
+- price: Product price with currency
+- availability: in_stock, out_of_stock, preorder, backorder
+- brand: Manufacturer/brand name
 
-CRITICAL RULES:
-- Generate proposals for ALL improvable fields (title, description, color, material, gender, etc.)
-- ALWAYS optimize title if < 60 chars or missing key attributes (brand, product type, key features)
-- ALWAYS optimize description if < 100 chars or not informative
-- Fill ALL missing recommended GMC attributes you can reasonably infer
-- Use ONLY facts from the provided data or image analysis (NO invention)
-- Each proposal must have a clear rationale
+REQUIRED FOR APPAREL (US, UK, DE, JP, FR, BR):
+- color: Product color - use standard names (black, blue, red), no hex codes
+- gender: male, female, unisex
+- age_group: newborn, infant, toddler, kids, adult
+- size: S, M, L, XL or numeric (8, 9.5, etc.)
 
-GMC TITLE BEST PRACTICES:
-- Include: Brand + Product Type + Key Attributes (color, size, material)
-- 60-150 characters optimal
-- No promotional text ("Free shipping", "Sale")
-- Front-load important keywords
+STRONGLY RECOMMENDED:
+- gtin: EAN (13 digits) / UPC (12 digits) / ISBN
+- mpn: Manufacturer Part Number
+- google_product_category: Google taxonomy ID (e.g., "Apparel & Accessories > Clothing > Shirts")
+- product_type: Your category hierarchy
+- condition: new, used, refurbished
+- item_group_id: For variants (same product, different size/color)
 
-GMC DESCRIPTION BEST PRACTICES:
-- Include: Product benefits, specifications, use cases
-- 100-500 characters optimal
-- Be specific and informative
+INFERABLE ATTRIBUTES (propose when missing):
+- material: cotton, polyester, leather, wool, silk, denim, etc.
+- pattern: solid, striped, floral, checkered, printed, etc.
+- size_type: regular, petite, plus, tall, maternity
+- size_system: US, UK, EU, FR, IT
+- product_weight: For shipping
+- product_height, product_width, product_length: Dimensions
 
-OUTPUT FORMAT (JSON):
+=== OPTIMIZATION TASKS ===
+
+1. TITLE (ALWAYS optimize if improvable):
+   - Template: Brand + Gender + Product Type + Color + Size + Material
+   - Min 30 chars, optimal 60-150 chars
+   - Front-load keywords (first 70 chars visible in search)
+   - FORBIDDEN: promotional text (free shipping, sale, -50%, soldes)
+
+2. DESCRIPTION (ALWAYS optimize if improvable):
+   - Include: benefits, features, specifications, use cases
+   - Min 50 chars, optimal 100-500 chars
+   - Be specific and informative
+
+3. MISSING ATTRIBUTES (propose ALL that are inferable):
+   - color: From image or title ("Blue T-Shirt" → color: "blue")
+   - gender: From product type or image
+   - age_group: Default "adult" unless clearly kids product
+   - material: From image texture or product type
+   - pattern: From image (solid, striped, etc.)
+   - size: Extract from title if present
+   - product_type: Build from category/title
+   - google_product_category: Map to Google taxonomy
+
+=== OUTPUT FORMAT (JSON) ===
 {
   "analysis": {
     "score": 0.65,
-    "missing_fields": ["color", "material"],
+    "missing_fields": ["color", "gender", "age_group", "material"],
     "weak_fields": ["title", "description"],
-    "violations": ["title too short"]
+    "violations": ["title too short", "missing required apparel attributes"]
   },
   "proposals": [
     {
       "field": "title",
       "before": "Blue Shirt",
       "after": "Nike Men's Dri-FIT Blue Running Shirt - Lightweight Breathable",
-      "rationale": "Added brand, gender, product type, and key features for better GMC visibility",
+      "rationale": "Added brand, gender, product type, and key features",
       "sources": ["feed:brand", "feed:title", "image:color"],
       "confidence": 0.9,
+      "risk_level": "low"
+    },
+    {
+      "field": "color",
+      "before": "",
+      "after": "blue",
+      "rationale": "Color visible in product image and mentioned in title",
+      "sources": ["image:color", "feed:title"],
+      "confidence": 0.95,
+      "risk_level": "low"
+    },
+    {
+      "field": "gender",
+      "before": "",
+      "after": "male",
+      "rationale": "Product is clearly men's apparel based on title and styling",
+      "sources": ["feed:title", "image:style"],
+      "confidence": 0.85,
       "risk_level": "low"
     }
   ]
 }
 
-IMPORTANT: Generate AT LEAST one proposal for title and description if they can be improved.
-Be GENEROUS with proposals - it's better to propose improvements that get rejected than to miss opportunities.`
+=== CRITICAL RULES ===
+- NO INVENTION: Only use facts from feed data or image analysis
+- Be GENEROUS: Propose all improvements, let humans reject if needed
+- Generate AT LEAST 3-5 proposals for products with missing attributes
+- For APPAREL: ALWAYS propose color, gender, age_group, size if missing`
 
 	userPrompt := fmt.Sprintf(`Product Data:
 %s
@@ -315,12 +368,16 @@ func (p *FastPipeline) analyzeImageFast(ctx context.Context, imageURL string) (s
 				MultiContent: []openai.ChatMessagePart{
 					{
 						Type: openai.ChatMessagePartTypeText,
-						Text: `Extract FACTUAL observations from this product image. Output JSON:
+						Text: `Extract ALL factual GMC attributes from this product image. Output JSON:
 {
-  "color": "observed color or null",
-  "material": "observed material or null",  
-  "style": "style/type observation or null",
-  "gender": "target gender if obvious or null",
+  "color": "primary color (e.g., black, blue, red, white, beige)",
+  "secondary_colors": ["additional colors if multicolor"],
+  "material": "visible material (e.g., cotton, leather, denim, wool, polyester)",
+  "pattern": "pattern type (solid, striped, floral, checkered, printed, geometric)",
+  "style": "product style/type (e.g., casual, formal, sporty, vintage)",
+  "gender": "target gender if obvious (male, female, unisex)",
+  "age_group": "target age if obvious (adult, kids, infant)",
+  "product_type": "what the product is (e.g., t-shirt, sneakers, handbag)",
   "other_observations": ["any other relevant facts"]
 }
 
