@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -320,18 +321,24 @@ func (h *Handlers) EnrichProduct(c echo.Context) error {
 		req.Goal = "GMC compliance + agent readiness"
 	}
 
-	// Run agent (in production, this would be async via queue)
+	// Run agent in background with separate context
 	go func() {
-		ctx := c.Request().Context()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		
+		fmt.Printf("Starting agent for product %s with goal: %s\n", product.ID, req.Goal)
+		
 		session, err := h.agent.Run(ctx, product, req.Goal)
 		if err != nil {
-			fmt.Printf("Agent error: %v\n", err)
+			fmt.Printf("Agent error for product %s: %v\n", product.ID, err)
 			return
 		}
 
+		fmt.Printf("Agent completed for product %s: %d steps, %d proposals\n", product.ID, len(session.Traces), len(session.Proposals))
+
 		// Save session and proposals to DB
 		if err := h.queries.CreateAgentSession(ctx, *session); err != nil {
-			fmt.Printf("Failed to save session: %v\n", err)
+			fmt.Printf("Failed to save session for product %s: %v\n", product.ID, err)
 		}
 	}()
 
