@@ -293,6 +293,46 @@ func (q *Queries) GetProposal(ctx context.Context, id uuid.UUID) (*models.Propos
 	return &p, nil
 }
 
+// ProposalWithProduct includes product info alongside the proposal
+type ProposalWithProduct struct {
+	models.Proposal
+	ProductExternalID string          `json:"product_external_id"`
+	ProductTitle      string          `json:"product_title"`
+	DatasetID         uuid.UUID       `json:"dataset_id"`
+}
+
+func (q *Queries) ListProposalsWithProducts(ctx context.Context) ([]ProposalWithProduct, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT 
+			p.id, p.product_id, p.session_id, p.field, p.before_value, p.after_value, 
+			p.sources, p.confidence, p.risk_level, p.status, p.reviewed_by, p.reviewed_at, p.created_at,
+			pr.external_id,
+			COALESCE(pr.raw_data->>'title', pr.raw_data->>'titre', pr.raw_data->>'Titre', pr.external_id) as product_title,
+			pr.dataset_id
+		FROM proposals p
+		JOIN products pr ON p.product_id = pr.id
+		ORDER BY p.created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var proposals []ProposalWithProduct
+	for rows.Next() {
+		var p ProposalWithProduct
+		if err := rows.Scan(
+			&p.ID, &p.ProductID, &p.SessionID, &p.Field, &p.BeforeValue, &p.AfterValue,
+			&p.Sources, &p.Confidence, &p.RiskLevel, &p.Status, &p.ReviewedBy, &p.ReviewedAt, &p.CreatedAt,
+			&p.ProductExternalID, &p.ProductTitle, &p.DatasetID,
+		); err != nil {
+			return nil, err
+		}
+		proposals = append(proposals, p)
+	}
+	return proposals, nil
+}
+
 func (q *Queries) UpdateProposalStatus(ctx context.Context, id uuid.UUID, status string) error {
 	_, err := q.pool.Exec(ctx, `UPDATE proposals SET status = $2, reviewed_at = NOW() WHERE id = $1`, id, status)
 	return err

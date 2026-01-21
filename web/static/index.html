@@ -238,47 +238,143 @@
                     </div>
                 </div>
 
-                <!-- Recent Proposals -->
+                <!-- Proposals Management -->
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold flex items-center gap-2">
                             <span>📝</span> Recent Proposals
-                            <span class="text-sm text-gray-400" x-text="'(' + proposals.length + ')'"></span>
+                            <span class="text-sm text-gray-400" x-text="'(' + filteredProposals.length + ' / ' + proposalsWithProducts.length + ')'"></span>
                         </h2>
-                        <button @click="loadProposals" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
+                        <div class="flex gap-2">
+                            <button @click="loadProposalsWithProducts" class="text-blue-400 text-sm hover:text-blue-300">↻ Refresh</button>
+                        </div>
                     </div>
-                    <div x-show="proposals.length === 0" class="text-center text-gray-500 py-8">
+
+                    <!-- Filters & Auto-Accept Controls -->
+                    <div class="bg-gray-700/30 rounded-lg p-4 mb-4 space-y-3">
+                        <div class="flex flex-wrap gap-4">
+                            <!-- Field Filter -->
+                            <div class="flex-1 min-w-32">
+                                <label class="text-xs text-gray-400 block mb-1">Field</label>
+                                <select x-model="proposalFilters.field" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+                                    <option value="">All Fields</option>
+                                    <option value="title">Title</option>
+                                    <option value="titre">Titre</option>
+                                    <option value="description">Description</option>
+                                    <option value="color">Color</option>
+                                    <option value="material">Material</option>
+                                    <option value="gender">Gender</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Min Confidence -->
+                            <div class="flex-1 min-w-32">
+                                <label class="text-xs text-gray-400 block mb-1">Min Confidence</label>
+                                <select x-model="proposalFilters.minConfidence" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+                                    <option value="0">Any</option>
+                                    <option value="0.5">≥ 50%</option>
+                                    <option value="0.7">≥ 70%</option>
+                                    <option value="0.8">≥ 80%</option>
+                                    <option value="0.9">≥ 90%</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Risk Level -->
+                            <div class="flex-1 min-w-32">
+                                <label class="text-xs text-gray-400 block mb-1">Risk Level</label>
+                                <select x-model="proposalFilters.riskLevel" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+                                    <option value="">All</option>
+                                    <option value="low">Low only</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+
+                            <!-- Status Filter -->
+                            <div class="flex-1 min-w-32">
+                                <label class="text-xs text-gray-400 block mb-1">Status</label>
+                                <select x-model="proposalFilters.status" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm">
+                                    <option value="">All</option>
+                                    <option value="proposed">Pending</option>
+                                    <option value="accepted">Accepted</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Accept Actions -->
+                        <div class="flex items-center justify-between pt-2 border-t border-gray-600">
+                            <div class="text-sm text-gray-400">
+                                <span x-text="filteredProposals.filter(p => p.status === 'proposed').length"></span> pending in current filter
+                            </div>
+                            <div class="flex gap-2">
+                                <button @click="bulkAccept()" 
+                                        :disabled="filteredProposals.filter(p => p.status === 'proposed').length === 0"
+                                        class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1">
+                                    ✓ Accept Filtered (<span x-text="filteredProposals.filter(p => p.status === 'proposed').length"></span>)
+                                </button>
+                                <button @click="bulkReject()" 
+                                        :disabled="filteredProposals.filter(p => p.status === 'proposed').length === 0"
+                                        class="bg-red-600/50 text-red-300 px-4 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50">
+                                    ✗ Reject Filtered
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposals List -->
+                    <div x-show="proposalsWithProducts.length === 0" class="text-center text-gray-500 py-8">
                         No proposals yet. Enrich products to generate proposals.
                     </div>
-                    <div x-show="proposals.length > 0" class="space-y-3 max-h-96 overflow-y-auto">
-                        <template x-for="prop in proposals.slice(0, 20)" :key="prop.id">
-                            <div class="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium text-white" x-text="prop.field"></span>
-                                        <span class="text-xs px-2 py-0.5 rounded"
-                                              :class="{
-                                                'bg-green-500/20 text-green-400': prop.risk_level === 'low',
-                                                'bg-yellow-500/20 text-yellow-400': prop.risk_level === 'medium',
-                                                'bg-red-500/20 text-red-400': prop.risk_level === 'high'
-                                              }"
-                                              x-text="prop.risk_level"></span>
-                                        <span class="text-xs text-gray-400" x-text="(prop.confidence * 100).toFixed(0) + '% conf'"></span>
+                    <div x-show="proposalsWithProducts.length > 0" class="space-y-2 max-h-[500px] overflow-y-auto">
+                        <template x-for="prop in filteredProposals.slice(0, 50)" :key="prop.id">
+                            <div class="bg-gray-700/50 rounded-lg p-3 hover:bg-gray-700 transition-colors border-l-4"
+                                 :class="{
+                                    'border-green-500': prop.status === 'accepted',
+                                    'border-red-500': prop.status === 'rejected',
+                                    'border-yellow-500': prop.status === 'proposed'
+                                 }">
+                                <div class="flex justify-between items-start gap-4">
+                                    <!-- Product & Field Info -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="text-xs text-gray-500 font-mono truncate max-w-32" x-text="prop.product_external_id || prop.product_id?.slice(0,8)"></span>
+                                            <span class="text-xs text-gray-600">•</span>
+                                            <span class="text-xs text-gray-400 truncate" x-text="prop.product_title?.slice(0,40) + (prop.product_title?.length > 40 ? '...' : '')"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-white" x-text="prop.field"></span>
+                                            <span class="text-xs px-1.5 py-0.5 rounded"
+                                                  :class="{
+                                                    'bg-green-500/20 text-green-400': prop.risk_level === 'low',
+                                                    'bg-yellow-500/20 text-yellow-400': prop.risk_level === 'medium',
+                                                    'bg-red-500/20 text-red-400': prop.risk_level === 'high'
+                                                  }"
+                                                  x-text="prop.risk_level"></span>
+                                            <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" x-text="(prop.confidence * 100).toFixed(0) + '%'"></span>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2" x-show="prop.status === 'proposed'">
-                                        <button @click="updateProposal(prop.id, 'accept')" class="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">✓</button>
-                                        <button @click="updateProposal(prop.id, 'reject')" class="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">✗</button>
+                                    
+                                    <!-- Actions -->
+                                    <div class="flex gap-1" x-show="prop.status === 'proposed'">
+                                        <button @click="updateProposal(prop.id, 'accept')" class="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">✓</button>
+                                        <button @click="updateProposal(prop.id, 'reject')" class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">✗</button>
                                     </div>
-                                    <span x-show="prop.status !== 'proposed'" class="text-xs px-2 py-1 rounded"
+                                    <span x-show="prop.status !== 'proposed'" class="text-xs px-2 py-1 rounded whitespace-nowrap"
                                           :class="prop.status === 'accepted' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
                                           x-text="prop.status"></span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-2 text-sm">
-                                    <div class="diff-remove px-2 py-1 rounded" x-text="prop.before_value || '(empty)'"></div>
-                                    <div class="diff-add px-2 py-1 rounded" x-text="prop.after_value"></div>
+                                
+                                <!-- Before/After -->
+                                <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+                                    <div class="diff-remove px-2 py-1 rounded text-xs truncate" x-text="prop.before_value || '(empty)'"></div>
+                                    <div class="diff-add px-2 py-1 rounded text-xs truncate" x-text="prop.after_value"></div>
                                 </div>
                             </div>
                         </template>
+                        <p x-show="filteredProposals.length > 50" class="text-sm text-gray-500 text-center py-2">
+                            Showing 50 of <span x-text="filteredProposals.length"></span> proposals
+                        </p>
                     </div>
                 </div>
             </main>
@@ -482,6 +578,7 @@
                 datasets: [],
                 products: [],
                 proposals: [],
+                proposalsWithProducts: [],
                 datasetStats: {},
                 selectedDataset: null,
                 selectedProduct: null,
@@ -489,6 +586,14 @@
                 uploadFile: null,
                 uploadName: '',
                 uploading: false,
+                
+                // Proposal filters
+                proposalFilters: {
+                    field: '',
+                    minConfidence: '0',
+                    riskLevel: '',
+                    status: ''
+                },
                 
                 // Agent state
                 showLogPanel: true,
@@ -502,9 +607,28 @@
 
                 async init() {
                     await this.loadDatasets();
-                    await this.loadProposals();
-                    setInterval(() => this.loadProposals(), 5000);
+                    await this.loadProposalsWithProducts();
+                    setInterval(() => this.loadProposalsWithProducts(), 5000);
                     setInterval(() => this.refreshAllDatasetStats(), 10000);
+                },
+                
+                // Computed filtered proposals
+                get filteredProposals() {
+                    return this.proposalsWithProducts.filter(p => {
+                        if (this.proposalFilters.field && p.field.toLowerCase() !== this.proposalFilters.field.toLowerCase()) {
+                            return false;
+                        }
+                        if (this.proposalFilters.minConfidence && p.confidence < parseFloat(this.proposalFilters.minConfidence)) {
+                            return false;
+                        }
+                        if (this.proposalFilters.riskLevel && p.risk_level !== this.proposalFilters.riskLevel) {
+                            return false;
+                        }
+                        if (this.proposalFilters.status && p.status !== this.proposalFilters.status) {
+                            return false;
+                        }
+                        return true;
+                    });
                 },
 
                 async loadDatasetStats(datasetId) {
@@ -570,6 +694,87 @@
                     
                     if (this.selectedProduct) {
                         this.productProposals = this.proposals.filter(p => p.product_id === this.selectedProduct.id);
+                    }
+                },
+
+                async loadProposalsWithProducts() {
+                    try {
+                        const res = await fetch('/api/proposals/with-products');
+                        const data = await res.json();
+                        const oldCount = this.proposalsWithProducts.length;
+                        this.proposalsWithProducts = data.data || [];
+                        this.proposals = this.proposalsWithProducts; // Keep backward compat
+                        
+                        if (this.proposalsWithProducts.length > oldCount && oldCount > 0) {
+                            this.agentStats.proposalsGenerated = this.proposalsWithProducts.length;
+                        }
+                        
+                        if (this.selectedProduct) {
+                            this.productProposals = this.proposalsWithProducts.filter(p => p.product_id === this.selectedProduct.id);
+                        }
+                    } catch (e) {
+                        console.error('Failed to load proposals:', e);
+                        await this.loadProposals(); // Fallback
+                    }
+                },
+
+                async bulkAccept() {
+                    const pending = this.filteredProposals.filter(p => p.status === 'proposed');
+                    if (pending.length === 0) return;
+                    
+                    const fields = this.proposalFilters.field ? [this.proposalFilters.field] : [];
+                    const riskLevels = this.proposalFilters.riskLevel ? [this.proposalFilters.riskLevel] : [];
+                    
+                    this.addLog('info', 'Bulk accepting proposals', `${pending.length} proposals matching filters`);
+                    
+                    try {
+                        const res = await fetch('/api/proposals/bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'accept',
+                                fields: fields,
+                                min_confidence: parseFloat(this.proposalFilters.minConfidence) || 0,
+                                risk_levels: riskLevels,
+                                only_status: 'proposed'
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        this.addLog('success', 'Bulk accept complete', `${data.updated} proposals accepted`);
+                        await this.loadProposalsWithProducts();
+                    } catch (e) {
+                        this.addLog('error', 'Bulk accept failed', e.message);
+                    }
+                },
+
+                async bulkReject() {
+                    const pending = this.filteredProposals.filter(p => p.status === 'proposed');
+                    if (pending.length === 0) return;
+                    
+                    const fields = this.proposalFilters.field ? [this.proposalFilters.field] : [];
+                    const riskLevels = this.proposalFilters.riskLevel ? [this.proposalFilters.riskLevel] : [];
+                    
+                    this.addLog('info', 'Bulk rejecting proposals', `${pending.length} proposals matching filters`);
+                    
+                    try {
+                        const res = await fetch('/api/proposals/bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'reject',
+                                fields: fields,
+                                min_confidence: parseFloat(this.proposalFilters.minConfidence) || 0,
+                                risk_levels: riskLevels,
+                                only_status: 'proposed'
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        this.addLog('success', 'Bulk reject complete', `${data.updated} proposals rejected`);
+                        await this.loadProposalsWithProducts();
+                    } catch (e) {
+                        this.addLog('error', 'Bulk reject failed', e.message);
                     }
                 },
 

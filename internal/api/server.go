@@ -74,6 +74,7 @@ func (s *Server) setupRoutes() {
 
 	// Proposals
 	api.GET("/proposals", h.ListProposals)
+	api.GET("/proposals/with-products", h.ListProposalsWithProducts)
 	api.GET("/proposals/:id", h.GetProposal)
 	api.PATCH("/proposals/:id", h.UpdateProposal)
 	api.POST("/proposals/bulk", h.BulkUpdateProposals)

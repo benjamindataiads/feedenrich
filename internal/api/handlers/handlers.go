@@ -459,6 +459,15 @@ func (h *Handlers) ListProposals(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"data": proposals})
 }
 
+// ListProposalsWithProducts returns proposals enriched with product info
+func (h *Handlers) ListProposalsWithProducts(c echo.Context) error {
+	proposals, err := h.queries.ListProposalsWithProducts(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list proposals")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"data": proposals})
+}
+
 // GetProposal returns a single proposal
 func (h *Handlers) GetProposal(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
@@ -508,22 +517,90 @@ func (h *Handlers) UpdateProposal(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": status})
 }
 
-// BulkUpdateProposals updates multiple proposals
+// BulkUpdateProposals updates multiple proposals based on filters
 func (h *Handlers) BulkUpdateProposals(c echo.Context) error {
 	var req struct {
-		Action  string `json:"action"`
-		Filters struct {
-			DatasetID string `json:"dataset_id"`
-			RiskLevel string `json:"risk_level"`
-			Status    string `json:"status"`
-		} `json:"filters"`
+		Action           string   `json:"action"`            // accept, reject
+		Fields           []string `json:"fields"`            // filter by field names (title, description, etc.)
+		MinConfidence    float64  `json:"min_confidence"`    // minimum confidence threshold (0-1)
+		RiskLevels       []string `json:"risk_levels"`       // filter by risk levels (low, medium, high)
+		DatasetID        string   `json:"dataset_id"`        // filter by dataset
+		OnlyStatus       string   `json:"only_status"`       // filter by current status (usually "proposed")
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
 	}
 
-	// TODO: implement bulk update
-	return c.JSON(http.StatusOK, map[string]int{"updated": 0})
+	status := "proposed"
+	switch req.Action {
+	case "accept":
+		status = "accepted"
+	case "reject":
+		status = "rejected"
+	default:
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid action")
+	}
+
+	// Get all proposals matching filters
+	proposals, err := h.queries.ListProposals(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list proposals")
+	}
+
+	// Filter and update
+	updated := 0
+	for _, p := range proposals {
+		// Only update "proposed" status by default
+		if req.OnlyStatus != "" && p.Status != req.OnlyStatus {
+			continue
+		}
+		if req.OnlyStatus == "" && p.Status != "proposed" {
+			continue
+		}
+
+		// Field filter
+		if len(req.Fields) > 0 {
+			matched := false
+			for _, f := range req.Fields {
+				if strings.EqualFold(p.Field, f) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		// Confidence filter
+		if req.MinConfidence > 0 && p.Confidence < req.MinConfidence {
+			continue
+		}
+
+		// Risk level filter
+		if len(req.RiskLevels) > 0 {
+			matched := false
+			for _, r := range req.RiskLevels {
+				if strings.EqualFold(p.RiskLevel, r) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		// Update this proposal
+		if err := h.queries.UpdateProposalStatus(c.Request().Context(), p.ID, status); err == nil {
+			updated++
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"updated": updated,
+		"status":  status,
+	})
 }
 
 // ListRules returns all rules
