@@ -441,7 +441,9 @@
                 getProductTitle(p) {
                     try {
                         const data = this.parseData(p.raw_data);
-                        return data.title || data.Title || data.name || data.Name || '-';
+                        return data.title || data.Title || data.titre || data.Titre || 
+                               data.name || data.Name || data.nom || data.Nom ||
+                               data.product_name || data.product_title || '-';
                     } catch {
                         return '-';
                     }
