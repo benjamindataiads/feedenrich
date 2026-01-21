@@ -646,6 +646,8 @@
                     
                     this.globalEnriching = true;
                     this.enrichProgress = 0;
+                    const startProposals = this.proposals.length;
+                    
                     this.addLog('info', '🚀 Global enrichment started', `Processing all products in dataset`);
                     
                     // Load products if not loaded
@@ -658,13 +660,14 @@
                     
                     this.addLog('info', 'Products to process', `${total} products pending enrichment`);
                     
-                    for (let i = 0; i < Math.min(total, 10); i++) { // Limit to 10 for demo
+                    // Process ALL products (no limit)
+                    for (let i = 0; i < total; i++) {
                         const product = pendingProducts[i];
                         this.currentEnrichingProduct = product.id;
-                        this.currentOperation = `Processing ${i + 1}/${Math.min(total, 10)}: ${product.external_id}`;
-                        this.enrichProgress = ((i + 1) / Math.min(total, 10)) * 100;
+                        this.currentOperation = `Processing ${i + 1}/${total}: ${product.external_id}`;
+                        this.enrichProgress = ((i + 1) / total) * 100;
                         
-                        this.addLog('step', `Product ${i + 1}/${Math.min(total, 10)}`, product.external_id);
+                        this.addLog('step', `Product ${i + 1}/${total}`, product.external_id);
                         
                         await fetch(`/api/products/${product.id}/enrich`, {
                             method: 'POST',
@@ -672,16 +675,26 @@
                             body: JSON.stringify({ goal: 'GMC compliance + agent readiness' })
                         });
                         
-                        // Wait between products
-                        await new Promise(r => setTimeout(r, 3000));
                         this.agentStats.productsProcessed++;
                         this.agentStats.toolsUsed += 4;
+                        
+                        // Refresh proposals periodically to show progress
+                        if (i % 5 === 4) {
+                            await this.loadProposals();
+                            const newProposals = this.proposals.length - startProposals;
+                            this.addLog('info', '📊 Progress update', `${newProposals} new proposals generated so far`);
+                        }
+                        
+                        // Wait between products to avoid overwhelming the API
+                        await new Promise(r => setTimeout(r, 2000));
                     }
                     
-                    // Wait for last one to complete
+                    // Wait for last batch to complete
                     await new Promise(r => setTimeout(r, 5000));
                     await this.loadProposals();
                     await this.refreshProducts();
+                    
+                    const totalNewProposals = this.proposals.length - startProposals;
                     
                     this.globalEnriching = false;
                     this.currentEnrichingProduct = null;
@@ -689,7 +702,7 @@
                     this.agentStats.proposalsGenerated = this.proposals.length;
                     
                     this.addLog('success', '✅ Global enrichment complete', 
-                        `Processed ${Math.min(total, 10)} products, generated ${this.proposals.length} proposals`);
+                        `Processed ${total} products, generated ${totalNewProposals} new proposals (${this.proposals.length} total)`);
                 },
 
                 async updateProposal(id, action) {
