@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"os"
 	"os/signal"
@@ -11,6 +12,8 @@ import (
 	"github.com/benjamincozon/feedenrich/internal/api"
 	"github.com/benjamincozon/feedenrich/internal/config"
 	"github.com/benjamincozon/feedenrich/internal/db"
+	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
 )
 
 func main() {
@@ -18,6 +21,11 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Run migrations
+	if err := runMigrations(cfg.Database.URL); err != nil {
+		log.Printf("Warning: Migration failed: %v", err)
 	}
 
 	// Connect to database
@@ -52,4 +60,23 @@ func main() {
 	if err := server.Start(ctx); err != nil {
 		log.Printf("Server stopped: %v", err)
 	}
+}
+
+func runMigrations(databaseURL string) error {
+	db, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	log.Println("Running database migrations...")
+	if err := goose.Up(db, "migrations"); err != nil {
+		return err
+	}
+	log.Println("Migrations completed")
+	return nil
 }
