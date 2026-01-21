@@ -155,11 +155,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-medium text-gray-700 mb-2">📦 Raw Data</h4>
-                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="JSON.stringify(JSON.parse(selectedProduct?.raw_data || '{}'), null, 2)"></pre>
+                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="formatJSON(selectedProduct?.raw_data)"></pre>
                         </div>
                         <div>
                             <h4 class="font-medium text-gray-700 mb-2">✨ Current Data</h4>
-                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="JSON.stringify(JSON.parse(selectedProduct?.current_data || '{}'), null, 2)"></pre>
+                            <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48" x-text="formatJSON(selectedProduct?.current_data)"></pre>
                         </div>
                     </div>
 
@@ -220,10 +220,10 @@
                                     </div>
 
                                     <!-- Sources -->
-                                    <div x-show="prop.sources && JSON.parse(prop.sources || '[]').length > 0" class="mt-2">
+                                    <div x-show="parseSources(prop.sources).length > 0" class="mt-2">
                                         <span class="text-xs text-gray-500">Sources:</span>
                                         <div class="flex flex-wrap gap-1 mt-1">
-                                            <template x-for="src in JSON.parse(prop.sources || '[]')" :key="src.reference">
+                                            <template x-for="src in parseSources(prop.sources)" :key="src.reference">
                                                 <a :href="src.reference" target="_blank" class="text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-0.5 rounded">
                                                     🔗 <span x-text="src.type"></span>
                                                 </a>
@@ -440,11 +440,45 @@
 
                 getProductTitle(p) {
                     try {
-                        const data = JSON.parse(p.raw_data);
+                        const data = this.parseData(p.raw_data);
                         return data.title || data.Title || data.name || data.Name || '-';
                     } catch {
                         return '-';
                     }
+                },
+
+                parseData(data) {
+                    if (!data) return {};
+                    if (typeof data === 'string') {
+                        try {
+                            return JSON.parse(data);
+                        } catch {
+                            return {};
+                        }
+                    }
+                    return data;
+                },
+
+                formatJSON(data) {
+                    try {
+                        const parsed = this.parseData(data);
+                        return JSON.stringify(parsed, null, 2);
+                    } catch {
+                        return String(data);
+                    }
+                },
+
+                parseSources(sources) {
+                    if (!sources) return [];
+                    if (Array.isArray(sources)) return sources;
+                    if (typeof sources === 'string') {
+                        try {
+                            return JSON.parse(sources);
+                        } catch {
+                            return [];
+                        }
+                    }
+                    return [];
                 }
             }
         }
