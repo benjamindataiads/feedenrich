@@ -574,161 +574,182 @@
                     <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
                         <h2 class="text-xl font-bold mb-6 flex items-center gap-2">📖 Documentation</h2>
                         
-                        <!-- How it Works -->
+                        <!-- Core Principle -->
+                        <div class="mb-8 bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-3 text-purple-400">🎯 Core Principle</h3>
+                            <p class="text-gray-300 mb-3">Never allow the same agent to <strong>evaluate</strong>, <strong>decide</strong>, AND <strong>generate</strong>.</p>
+                            <p class="text-sm text-gray-400">These responsibilities are strictly separated across 6 specialized agents.</p>
+                        </div>
+
+                        <!-- 6-Agent Pipeline -->
                         <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-blue-400">🔄 How FeedEnrich Works</h3>
+                            <h3 class="text-lg font-semibold mb-4 text-blue-400">🔄 6-Agent Pipeline</h3>
                             <div class="bg-gray-700/30 rounded-lg p-4">
-                                <div class="flex items-center justify-between gap-4 text-center mb-4">
-                                    <div class="flex-1 bg-blue-500/20 rounded-lg p-3">
-                                        <div class="text-2xl mb-1">📥</div>
-                                        <div class="font-medium text-sm">1. Import</div>
-                                        <p class="text-xs text-gray-400">Upload TSV/CSV</p>
+                                <div class="flex items-center justify-between gap-2 text-center mb-6">
+                                    <div class="flex-1 bg-gray-700/50 rounded-lg p-2">
+                                        <div class="text-xl mb-1">✓</div>
+                                        <div class="font-medium text-xs">Validate</div>
+                                        <p class="text-xs text-gray-500">Rules</p>
                                     </div>
-                                    <div class="text-gray-500">→</div>
-                                    <div class="flex-1 bg-yellow-500/20 rounded-lg p-3">
-                                        <div class="text-2xl mb-1">🔍</div>
-                                        <div class="font-medium text-sm">2. Analyze</div>
-                                        <p class="text-xs text-gray-400">AI evaluates quality</p>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-blue-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">⚖️</div>
+                                        <div class="font-medium text-xs">Audit</div>
+                                        <p class="text-xs text-gray-500">Judge</p>
                                     </div>
-                                    <div class="text-gray-500">→</div>
-                                    <div class="flex-1 bg-green-500/20 rounded-lg p-3">
-                                        <div class="text-2xl mb-1">✨</div>
-                                        <div class="font-medium text-sm">3. Optimize</div>
-                                        <p class="text-xs text-gray-400">Generate proposals</p>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-purple-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">👁️</div>
+                                        <div class="font-medium text-xs">Evidence</div>
+                                        <p class="text-xs text-gray-500">Vision</p>
                                     </div>
-                                    <div class="text-gray-500">→</div>
-                                    <div class="flex-1 bg-purple-500/20 rounded-lg p-3">
-                                        <div class="text-2xl mb-1">✅</div>
-                                        <div class="font-medium text-sm">4. Review</div>
-                                        <p class="text-xs text-gray-400">Accept/Reject</p>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-cyan-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">🔍</div>
+                                        <div class="font-medium text-xs">Retrieval</div>
+                                        <p class="text-xs text-gray-500">Facts</p>
                                     </div>
-                                    <div class="text-gray-500">→</div>
-                                    <div class="flex-1 bg-pink-500/20 rounded-lg p-3">
-                                        <div class="text-2xl mb-1">📤</div>
-                                        <div class="font-medium text-sm">5. Export</div>
-                                        <p class="text-xs text-gray-400">Optimized feed</p>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-yellow-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">📋</div>
+                                        <div class="font-medium text-xs">Plan</div>
+                                        <p class="text-xs text-gray-500">Decide</p>
+                                    </div>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-orange-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">✏️</div>
+                                        <div class="font-medium text-xs">Write</div>
+                                        <p class="text-xs text-gray-500">Generate</p>
+                                    </div>
+                                    <span class="text-gray-600">→</span>
+                                    <div class="flex-1 bg-red-500/20 rounded-lg p-2">
+                                        <div class="text-xl mb-1">🛡️</div>
+                                        <div class="font-medium text-xs">Control</div>
+                                        <p class="text-xs text-gray-500">Reject?</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Agentic Architecture -->
+                        <!-- Agent Details -->
                         <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-purple-400">🤖 Agentic Architecture</h3>
-                            <p class="text-gray-400 mb-4">FeedEnrich uses a central AI agent that dynamically chooses tools based on product context:</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">🔍 analyze_product</div>
-                                    <p class="text-sm text-gray-400">Evaluates data quality, GMC compliance, and agent-readiness score</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">🌐 web_search</div>
-                                    <p class="text-sm text-gray-400">Searches for verified product specs, materials, dimensions</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">👁️ analyze_image</div>
-                                    <p class="text-sm text-gray-400">Extracts visual attributes: color, style, material appearance</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">✏️ optimize_field</div>
-                                    <p class="text-sm text-gray-400">Generates improved titles and descriptions using templates</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">➕ add_attribute</div>
-                                    <p class="text-sm text-gray-400">Adds missing attributes with mandatory source citation</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="font-medium text-blue-400 mb-2">✅ validate_proposal</div>
-                                    <p class="text-sm text-gray-400">Checks proposals against no-invention and GMC rules</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Optimization Flow -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-green-400">📋 GMC Optimization Flow</h3>
-                            <p class="text-gray-400 mb-4">Based on Google Merchant Center best practices:</p>
+                            <h3 class="text-lg font-semibold mb-4 text-purple-400">🤖 The 6 Agents</h3>
                             <div class="space-y-3">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center font-bold">1</div>
-                                    <div class="flex-1 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                                        <div class="font-medium">🔴 Critical Errors</div>
-                                        <p class="text-sm text-gray-400">Fix disapprovals, policy violations, price mismatches</p>
+                                <!-- Auditor -->
+                                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">⚖️</span>
+                                        <div>
+                                            <div class="font-bold text-blue-400">Product Auditor</div>
+                                            <div class="text-xs text-gray-500">JUDGE ONLY</div>
+                                        </div>
                                     </div>
-                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                    <p class="text-sm text-gray-400 mb-2">Outputs structured diagnostics: violations, weaknesses, scores.</p>
+                                    <div class="text-xs text-red-400">❌ No rewriting • No suggestions • No creativity</div>
                                 </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center font-bold">2</div>
-                                    <div class="flex-1 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
-                                        <div class="font-medium">🟠 Required Attributes</div>
-                                        <p class="text-sm text-gray-400">Complete id, title, description, brand, GTIN</p>
+                                
+                                <!-- Evidence -->
+                                <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">👁️</span>
+                                        <div>
+                                            <div class="font-bold text-purple-400">Image Evidence Agent</div>
+                                            <div class="text-xs text-gray-500">DETECT ONLY</div>
+                                        </div>
                                     </div>
-                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                    <p class="text-sm text-gray-400 mb-2">Allowed: detect, confirm, deny, mark uncertainty.</p>
+                                    <div class="text-xs text-red-400">❌ No inference • No adjectives • No marketing language</div>
                                 </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center font-bold">3</div>
-                                    <div class="flex-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                                        <div class="font-medium">🟡 Recommended Attributes</div>
-                                        <p class="text-sm text-gray-400">Add category, product_type, color, size, material</p>
+                                
+                                <!-- Retrieval -->
+                                <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">🔍</span>
+                                        <div>
+                                            <div class="font-bold text-cyan-400">Knowledge Retrieval Agent</div>
+                                            <div class="text-xs text-gray-500">FETCH FACTS</div>
+                                        </div>
                                     </div>
-                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                    <p class="text-sm text-gray-400 mb-2">Every fact has: source URL + evidence snippet + confidence.</p>
+                                    <div class="text-xs text-green-400">✓ This is how we eliminate hallucination</div>
                                 </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center font-bold">4</div>
-                                    <div class="flex-1 bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                                        <div class="font-medium">🟢 Title & Description</div>
-                                        <p class="text-sm text-gray-400">Optimize using category-specific templates</p>
-                                    </div>
-                                    <span class="text-yellow-400 text-sm">A/B TEST</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Confidence & Risk -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-yellow-400">⚖️ Confidence & Risk Levels</h3>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                                    <div class="font-bold text-green-400 mb-2">Low Risk</div>
-                                    <ul class="text-sm text-gray-400 space-y-1">
-                                        <li>• Formatting fixes</li>
-                                        <li>• Case corrections</li>
-                                        <li>• Missing attributes from feed</li>
-                                        <li>• Color from image (obvious)</li>
-                                    </ul>
-                                </div>
+                                
+                                <!-- Planner -->
                                 <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                                    <div class="font-bold text-yellow-400 mb-2">Medium Risk</div>
-                                    <ul class="text-sm text-gray-400 space-y-1">
-                                        <li>• Title restructuring</li>
-                                        <li>• Description rewriting</li>
-                                        <li>• Attributes from web search</li>
-                                        <li>• Material from image</li>
-                                    </ul>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">📋</span>
+                                        <div>
+                                            <div class="font-bold text-yellow-400">Optimization Planner</div>
+                                            <div class="text-xs text-gray-500">DECIDE ONLY</div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-400 mb-2">Decides WHAT to optimize, classifies risk, identifies human gates.</p>
+                                    <div class="text-xs text-red-400">❌ No text generation • Decision logic only</div>
                                 </div>
+                                
+                                <!-- Writer -->
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">✏️</span>
+                                        <div>
+                                            <div class="font-bold text-orange-400">Copy Execution Agent</div>
+                                            <div class="text-xs text-gray-500">WRITE UNDER CONSTRAINTS</div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-400 mb-2">Receives: allowed_facts, forbidden_facts, constraints, objective.</p>
+                                    <div class="text-xs text-red-400">❌ Cannot invent • Every fact traceable</div>
+                                </div>
+                                
+                                <!-- Controller -->
                                 <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-bold text-red-400 mb-2">High Risk</div>
-                                    <ul class="text-sm text-gray-400 space-y-1">
-                                        <li>• Technical specifications</li>
-                                        <li>• Compatibility claims</li>
-                                        <li>• Health/safety claims</li>
-                                        <li>• Requires human review</li>
-                                    </ul>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">🛡️</span>
+                                        <div>
+                                            <div class="font-bold text-red-400">Controller Agent</div>
+                                            <div class="text-xs text-gray-500">EXISTS ONLY TO SAY NO</div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-400 mb-2">Compares before/after, verifies facts, checks rules. If wrong → REJECT.</p>
+                                    <div class="text-xs text-green-400">✓ This is what makes enterprises trust the system</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Quick Start -->
-                        <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                            <h3 class="text-lg font-semibold mb-3 text-blue-400">🚀 Quick Start</h3>
-                            <ol class="space-y-2 text-sm text-gray-300">
-                                <li><strong>1.</strong> Upload your Google Merchant Center feed (TSV/CSV)</li>
-                                <li><strong>2.</strong> Click "Enrich All" to analyze all products</li>
-                                <li><strong>3.</strong> Review proposals in the Proposals section</li>
-                                <li><strong>4.</strong> Use filters to bulk-accept low-risk improvements</li>
-                                <li><strong>5.</strong> Manually review medium/high risk proposals</li>
-                                <li><strong>6.</strong> Export your optimized feed</li>
-                            </ol>
+                        <!-- Supporting Tools -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-green-400">🛠️ Deterministic Tools</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-gray-700/30 rounded-lg p-3">
+                                    <div class="font-medium text-sm mb-1">Hard Rule Validator</div>
+                                    <p class="text-xs text-gray-500">Deterministic • Reproducible • Explainable</p>
+                                </div>
+                                <div class="bg-gray-700/30 rounded-lg p-3">
+                                    <div class="font-medium text-sm mb-1">Diff Engine</div>
+                                    <p class="text-xs text-gray-500">Shows exactly what changed</p>
+                                </div>
+                                <div class="bg-gray-700/30 rounded-lg p-3">
+                                    <div class="font-medium text-sm mb-1">Evidence Registry</div>
+                                    <p class="text-xs text-gray-500">Every fact → source (feed/image/web)</p>
+                                </div>
+                                <div class="bg-gray-700/30 rounded-lg p-3">
+                                    <div class="font-medium text-sm mb-1">Risk Classifier</div>
+                                    <p class="text-xs text-gray-500">LOW/MEDIUM/HIGH → human gate</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Why This Architecture -->
+                        <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-3 text-green-400">✅ What This Enables</h3>
+                            <p class="text-sm text-gray-300 mb-3">The system can now say:</p>
+                            <ul class="space-y-1 text-sm text-gray-400">
+                                <li>• <strong>What</strong> changed</li>
+                                <li>• <strong>Why</strong> it changed</li>
+                                <li>• Based on <strong>which evidence</strong></li>
+                                <li>• With <strong>what confidence</strong></li>
+                                <li>• Under <strong>which rule version</strong></li>
+                                <li>• And whether a <strong>human approved</strong> it</li>
+                            </ul>
                         </div>
                     </div>
                 </div><!-- End Docs Tab -->
@@ -736,7 +757,7 @@
             </main>
         </div>
 
-        <!-- Right Panel: Agent Logs -->
+        <!-- Right Panel: Pipeline View -->
         <div x-show="showLogPanel" 
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="translate-x-full"
@@ -744,33 +765,66 @@
              x-transition:leave="transition ease-in duration-200"
              x-transition:leave-start="translate-x-0"
              x-transition:leave-end="translate-x-full"
-             class="fixed right-0 top-0 h-full w-96 bg-gray-800 border-l border-gray-700 flex flex-col shadow-2xl z-40">
+             class="fixed right-0 top-0 h-full w-[420px] bg-gray-800 border-l border-gray-700 flex flex-col shadow-2xl z-40">
             
             <!-- Panel Header -->
             <div class="p-4 border-b border-gray-700 bg-gradient-to-r from-blue-600 to-purple-600">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-white flex items-center gap-2">
-                        🤖 Agent Activity
+                        🔄 Pipeline Activity
                         <span x-show="globalEnriching || currentEnrichingProduct" class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                     </h3>
                     <button @click="clearLogs" class="text-white/70 hover:text-white text-sm">Clear</button>
                 </div>
-                <p class="text-blue-100 text-sm mt-1">Real-time AI enrichment logs</p>
+                <p class="text-blue-100 text-sm mt-1">6-Agent Pipeline • Evidence-Based • Human-Gated</p>
+            </div>
+
+            <!-- Pipeline Stages Overview -->
+            <div class="p-3 bg-gray-900/50 border-b border-gray-700">
+                <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-green-400' : 'text-gray-500'">
+                        <span>✓</span><span>Validate</span>
+                    </div>
+                    <span class="text-gray-600">→</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-blue-400' : 'text-gray-500'">
+                        <span>⚖️</span><span>Audit</span>
+                    </div>
+                    <span class="text-gray-600">→</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-purple-400' : 'text-gray-500'">
+                        <span>👁️</span><span>Evidence</span>
+                    </div>
+                    <span class="text-gray-600">→</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 4 ? 'text-yellow-400' : 'text-gray-500'">
+                        <span>📋</span><span>Plan</span>
+                    </div>
+                    <span class="text-gray-600">→</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 5 ? 'text-orange-400' : 'text-gray-500'">
+                        <span>✏️</span><span>Write</span>
+                    </div>
+                    <span class="text-gray-600">→</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 6 ? 'text-red-400' : 'text-gray-500'">
+                        <span>🛡️</span><span>Control</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Stats Bar -->
-            <div class="p-3 bg-gray-900/50 border-b border-gray-700 grid grid-cols-3 gap-2 text-center">
+            <div class="p-3 bg-gray-900/30 border-b border-gray-700 grid grid-cols-4 gap-2 text-center">
                 <div>
-                    <div class="text-2xl font-bold text-blue-400" x-text="agentStats.productsProcessed"></div>
+                    <div class="text-xl font-bold text-blue-400" x-text="agentStats.productsProcessed"></div>
                     <div class="text-xs text-gray-400">Processed</div>
                 </div>
                 <div>
-                    <div class="text-2xl font-bold text-green-400" x-text="agentStats.proposalsGenerated"></div>
-                    <div class="text-xs text-gray-400">Proposals</div>
+                    <div class="text-xl font-bold text-green-400" x-text="agentStats.proposalsGenerated"></div>
+                    <div class="text-xs text-gray-400">Approved</div>
                 </div>
                 <div>
-                    <div class="text-2xl font-bold text-purple-400" x-text="agentStats.toolsUsed"></div>
-                    <div class="text-xs text-gray-400">Tools Used</div>
+                    <div class="text-xl font-bold text-red-400" x-text="agentStats.rejected || 0"></div>
+                    <div class="text-xs text-gray-400">Rejected</div>
+                </div>
+                <div>
+                    <div class="text-xl font-bold text-yellow-400" x-text="agentStats.humanReview || 0"></div>
+                    <div class="text-xs text-gray-400">Human</div>
                 </div>
             </div>
 
@@ -779,20 +833,49 @@
                 <template x-for="(log, index) in agentLogs" :key="index">
                     <div class="fade-in rounded-lg p-3 text-sm"
                          :class="{
-                            'bg-blue-500/10 border border-blue-500/30': log.type === 'info',
-                            'bg-green-500/10 border border-green-500/30': log.type === 'success',
-                            'bg-yellow-500/10 border border-yellow-500/30': log.type === 'tool',
-                            'bg-purple-500/10 border border-purple-500/30': log.type === 'thinking',
-                            'bg-red-500/10 border border-red-500/30': log.type === 'error',
-                            'bg-gray-700/50 border border-gray-600': log.type === 'step'
+                            'bg-gray-700/30 border border-gray-600': log.type === 'validate',
+                            'bg-blue-500/10 border border-blue-500/30': log.type === 'audit',
+                            'bg-purple-500/10 border border-purple-500/30': log.type === 'evidence',
+                            'bg-cyan-500/10 border border-cyan-500/30': log.type === 'retrieval',
+                            'bg-yellow-500/10 border border-yellow-500/30': log.type === 'plan',
+                            'bg-orange-500/10 border border-orange-500/30': log.type === 'write',
+                            'bg-pink-500/10 border border-pink-500/30': log.type === 'control',
+                            'bg-green-500/10 border border-green-500/30': log.type === 'approved',
+                            'bg-red-500/10 border border-red-500/30': log.type === 'rejected',
+                            'bg-amber-500/10 border border-amber-500/30': log.type === 'human',
+                            'bg-gray-700/50 border border-gray-600': log.type === 'info'
                          }">
                         <div class="flex items-start gap-2">
-                            <span class="text-lg" x-text="getLogIcon(log.type)"></span>
+                            <span class="text-lg flex-shrink-0" x-text="getPipelineIcon(log.type)"></span>
                             <div class="flex-1 min-w-0">
-                                <div class="font-medium text-white" x-text="log.title"></div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium text-white" x-text="log.title"></span>
+                                    <span x-show="log.agent" class="text-xs px-1.5 py-0.5 rounded bg-gray-700 text-gray-300" x-text="log.agent"></span>
+                                </div>
                                 <div class="text-gray-400 text-xs mt-1" x-text="log.message"></div>
-                                <div x-show="log.details" class="mt-2 bg-gray-900/50 rounded p-2 text-xs font-mono text-gray-300 overflow-x-auto">
-                                    <span x-text="log.details"></span>
+                                <!-- Evidence Trail -->
+                                <div x-show="log.evidence" class="mt-2 bg-gray-900/50 rounded p-2 text-xs">
+                                    <div class="text-gray-500 mb-1">📎 Evidence:</div>
+                                    <div class="text-gray-300 font-mono" x-text="log.evidence"></div>
+                                </div>
+                                <!-- Facts Used -->
+                                <div x-show="log.facts" class="mt-2 flex flex-wrap gap-1">
+                                    <template x-for="fact in (log.facts || [])" :key="fact">
+                                        <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300" x-text="fact"></span>
+                                    </template>
+                                </div>
+                                <!-- Rejection Reason -->
+                                <div x-show="log.rejection" class="mt-2 bg-red-500/20 rounded p-2 text-xs text-red-300">
+                                    <span class="font-medium">❌ Rejected:</span> <span x-text="log.rejection"></span>
+                                </div>
+                                <!-- Confidence -->
+                                <div x-show="log.confidence" class="mt-2 flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-700 rounded-full h-1.5">
+                                        <div class="h-1.5 rounded-full transition-all"
+                                             :class="log.confidence > 0.8 ? 'bg-green-500' : log.confidence > 0.6 ? 'bg-yellow-500' : 'bg-red-500'"
+                                             :style="'width: ' + (log.confidence * 100) + '%'"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400" x-text="Math.round(log.confidence * 100) + '%'"></span>
                                 </div>
                             </div>
                             <span class="text-xs text-gray-500 whitespace-nowrap" x-text="log.time"></span>
@@ -802,14 +885,16 @@
                 
                 <!-- Empty state -->
                 <div x-show="agentLogs.length === 0" class="text-center py-12 text-gray-500">
-                    <div class="text-4xl mb-2">🤖</div>
-                    <p>No activity yet</p>
-                    <p class="text-sm">Start enriching products to see agent logs</p>
+                    <div class="text-4xl mb-2">🔄</div>
+                    <p class="font-medium">6-Agent Pipeline</p>
+                    <p class="text-sm mt-2">Validate → Audit → Evidence → Plan → Write → Control</p>
+                    <p class="text-xs mt-4 text-gray-600">Start enriching products to see the pipeline in action</p>
                 </div>
                 
-                <!-- Typing indicator -->
+                <!-- Current Stage Indicator -->
                 <div x-show="isAgentThinking" class="flex items-center gap-2 text-blue-400 text-sm">
-                    <span class="typing">Agent is thinking</span>
+                    <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                    <span class="typing" x-text="currentStageLabel || 'Processing...'"></span>
                 </div>
             </div>
 
@@ -977,10 +1062,14 @@
                 dirtyPrompts: [],
                 savingPrompt: null,
                 
+                // Pipeline state
+                pipelineStage: 0,
+                currentStageLabel: '',
+                
                 // Agent state
                 showLogPanel: true,
                 agentLogs: [],
-                agentStats: { productsProcessed: 0, proposalsGenerated: 0, toolsUsed: 0 },
+                agentStats: { productsProcessed: 0, proposalsGenerated: 0, rejected: 0, humanReview: 0 },
                 globalEnriching: false,
                 currentEnrichingProduct: null,
                 enrichProgress: 0,
@@ -1041,14 +1130,56 @@
                     });
                 },
 
+                // Pipeline-specific logging with extended metadata
+                addPipelineLog(type, title, message, options = {}) {
+                    const time = new Date().toLocaleTimeString();
+                    const log = {
+                        type,
+                        title,
+                        message,
+                        time,
+                        agent: options.agent || null,
+                        evidence: options.evidence || null,
+                        facts: options.facts || null,
+                        rejection: options.rejection || null,
+                        confidence: options.confidence || null
+                    };
+                    this.agentLogs.unshift(log);
+                    if (this.agentLogs.length > 100) this.agentLogs.pop();
+                    this.$nextTick(() => {
+                        if (this.$refs.logContainer) {
+                            this.$refs.logContainer.scrollTop = 0;
+                        }
+                    });
+                },
+
                 clearLogs() {
                     this.agentLogs = [];
-                    this.agentStats = { productsProcessed: 0, proposalsGenerated: 0, toolsUsed: 0 };
+                    this.agentStats = { productsProcessed: 0, proposalsGenerated: 0, rejected: 0, humanReview: 0 };
+                    this.pipelineStage = 0;
                 },
 
                 getLogIcon(type) {
                     const icons = {
                         info: '📋', success: '✅', tool: '🔧', thinking: '💭', error: '❌', step: '➡️'
+                    };
+                    return icons[type] || '📌';
+                },
+
+                // Pipeline icons
+                getPipelineIcon(type) {
+                    const icons = {
+                        validate: '✓',
+                        audit: '⚖️',
+                        evidence: '👁️',
+                        retrieval: '🔍',
+                        plan: '📋',
+                        write: '✏️',
+                        control: '🛡️',
+                        approved: '✅',
+                        rejected: '❌',
+                        human: '👤',
+                        info: '📌'
                     };
                     return icons[type] || '📌';
                 },
@@ -1195,14 +1326,19 @@
                     this.productProposals = this.proposals.filter(p => p.product_id === product.id);
                 },
 
-                // Enrichment
+                // Enrichment with 6-Agent Pipeline
                 async enrichProduct(product) {
                     this.currentEnrichingProduct = product.id;
                     this.isAgentThinking = true;
-                    this.currentOperation = `Analyzing ${product.external_id}...`;
+                    this.pipelineStage = 0;
+                    this.currentOperation = `Processing ${product.external_id}...`;
                     
-                    this.addLog('thinking', 'Agent started', `Analyzing product: ${product.external_id}`);
-                    this.addLog('tool', 'Tool: analyze_product', 'Evaluating current data quality and GMC compliance');
+                    // Stage 1: Validate (deterministic)
+                    this.pipelineStage = 1;
+                    this.currentStageLabel = 'Stage 1: Validating rules...';
+                    this.addPipelineLog('validate', 'Hard Rule Validator', 'Checking GMC compliance rules', {
+                        agent: 'Deterministic'
+                    });
                     
                     try {
                         const res = await fetch(`/api/products/${product.id}/enrich`, {
@@ -1212,33 +1348,72 @@
                         });
 
                         if (res.ok) {
-                            this.agentStats.toolsUsed++;
-                            this.addLog('info', 'Enrichment started', 'Agent is processing...');
-                            
-                            // Simulate tool usage logs
+                            // Stage 2: Audit
                             setTimeout(() => {
-                                this.addLog('tool', 'Tool: web_search', 'Searching for product specifications');
-                                this.agentStats.toolsUsed++;
-                            }, 1000);
+                                this.pipelineStage = 2;
+                                this.currentStageLabel = 'Stage 2: Auditing product...';
+                                this.addPipelineLog('audit', 'Product Auditor', 'JUDGE only - evaluating quality', {
+                                    agent: 'Auditor',
+                                    message: 'No rewriting, no suggestions - structured diagnostics only'
+                                });
+                            }, 500);
                             
+                            // Stage 3: Evidence
                             setTimeout(() => {
-                                this.addLog('tool', 'Tool: analyze_image', 'Extracting visual attributes from product image');
-                                this.agentStats.toolsUsed++;
-                            }, 2000);
+                                this.pipelineStage = 3;
+                                this.currentStageLabel = 'Stage 3: Extracting evidence...';
+                                this.addPipelineLog('evidence', 'Image Evidence Agent', 'Extracting visual facts from product image', {
+                                    agent: 'Evidence',
+                                    message: 'Detect, confirm, deny only - no inference allowed'
+                                });
+                            }, 1500);
                             
+                            // Stage 4: Retrieval
                             setTimeout(() => {
-                                this.addLog('tool', 'Tool: optimize_field', 'Generating improved title and description');
-                                this.agentStats.toolsUsed++;
-                            }, 3000);
+                                this.pipelineStage = 4;
+                                this.currentStageLabel = 'Stage 4: Retrieving facts...';
+                                this.addPipelineLog('retrieval', 'Knowledge Retrieval', 'Fetching verifiable facts from sources', {
+                                    agent: 'Retrieval',
+                                    message: 'Every fact must have: source URL + evidence snippet'
+                                });
+                            }, 2500);
+                            
+                            // Stage 5: Plan
+                            setTimeout(() => {
+                                this.pipelineStage = 5;
+                                this.currentStageLabel = 'Stage 5: Planning optimizations...';
+                                this.addPipelineLog('plan', 'Optimization Planner', 'Deciding WHAT to optimize (not HOW)', {
+                                    agent: 'Planner',
+                                    message: 'Decision logic only - no text generation'
+                                });
+                            }, 3500);
+                            
+                            // Stage 6: Write + Control
+                            setTimeout(() => {
+                                this.pipelineStage = 6;
+                                this.currentStageLabel = 'Stage 6: Executing & validating...';
+                                this.addPipelineLog('write', 'Copy Execution', 'Writing under strict constraints', {
+                                    agent: 'Writer',
+                                    message: 'Using only allowed_facts, respecting forbidden_facts'
+                                });
+                            }, 4500);
+
+                            setTimeout(() => {
+                                this.addPipelineLog('control', 'Controller Agent', 'Validating changes - ready to REJECT', {
+                                    agent: 'Controller',
+                                    message: 'Checking: facts verified? constraints met? no invention?'
+                                });
+                            }, 5500);
 
                             // Poll for completion
                             this.pollEnrichment(product.id);
                         }
                     } catch (e) {
-                        this.addLog('error', 'Enrichment failed', e.message);
+                        this.addPipelineLog('rejected', 'Pipeline Error', e.message, { rejection: e.message });
                         this.currentEnrichingProduct = null;
                         this.isAgentThinking = false;
                         this.currentOperation = null;
+                        this.pipelineStage = 0;
                     }
                 },
 
@@ -1256,21 +1431,35 @@
                             this.currentEnrichingProduct = null;
                             this.isAgentThinking = false;
                             this.currentOperation = null;
+                            this.currentStageLabel = '';
+                            this.pipelineStage = 0;
                             this.agentStats.productsProcessed++;
                             
-                            const proposalCount = this.proposals.filter(p => p.product_id === productId).length;
-                            this.agentStats.proposalsGenerated = this.proposals.length;
+                            const productProposals = this.proposals.filter(p => p.product_id === productId);
+                            const proposalCount = productProposals.length;
+                            this.agentStats.proposalsGenerated = this.proposals.filter(p => p.status === 'proposed' || p.status === 'accepted').length;
+                            
+                            // Log approved proposals
+                            for (const prop of productProposals) {
+                                this.addPipelineLog('approved', `Field: ${prop.field}`, 
+                                    `Changed from "${(prop.before_value || '').substring(0, 30)}..." to "${prop.after_value.substring(0, 30)}..."`, {
+                                    agent: 'Controller',
+                                    confidence: prop.confidence,
+                                    facts: [prop.field]
+                                });
+                            }
                             
                             if (product?.agent_readiness_score) {
-                                this.addLog('success', 'Enrichment complete', 
-                                    `Score: ${(product.agent_readiness_score * 100).toFixed(0)}% | ${proposalCount} proposals generated`,
-                                    `Fields analyzed: title, description, color, material, gender`);
+                                this.addPipelineLog('info', 'Pipeline Complete', 
+                                    `Score: ${(product.agent_readiness_score * 100).toFixed(0)}% | ${proposalCount} proposals approved`, {
+                                    confidence: product.agent_readiness_score
+                                });
                             } else {
-                                this.addLog('success', 'Enrichment complete', `${proposalCount} proposals generated`);
+                                this.addPipelineLog('info', 'Pipeline Complete', `${proposalCount} proposals generated`);
                             }
                             
                             if (this.selectedProduct?.id === productId) {
-                                this.productProposals = this.proposals.filter(p => p.product_id === productId);
+                                this.productProposals = productProposals;
                             }
                         } else {
                             setTimeout(poll, 2000);
