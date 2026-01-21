@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FeedEnrich - Product Data Enrichment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="app()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-900">🚀 FeedEnrich</h1>
+            <span class="text-sm text-gray-500">Agent-powered product enrichment</span>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Upload Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4">Import Dataset</h2>
+            <form @submit.prevent="uploadDataset" class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm text-gray-600 mb-1">Dataset Name</label>
+                    <input type="text" x-model="uploadName" placeholder="My Catalog Q1 2024" 
+                           class="w-full border rounded px-3 py-2">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm text-gray-600 mb-1">TSV/CSV File</label>
+                    <input type="file" @change="uploadFile = $event.target.files[0]" accept=".tsv,.csv,.txt"
+                           class="w-full border rounded px-3 py-2">
+                </div>
+                <button type="submit" :disabled="!uploadFile" 
+                        class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+                    Upload
+                </button>
+            </form>
+        </div>
+
+        <!-- Datasets List -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Datasets</h2>
+                <button @click="loadDatasets" class="text-blue-600 text-sm">Refresh</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Name</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Products</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Status</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Created</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="ds in datasets" :key="ds.id">
+                            <tr class="border-t">
+                                <td class="px-4 py-3" x-text="ds.name"></td>
+                                <td class="px-4 py-3" x-text="ds.row_count"></td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded text-xs" 
+                                          :class="ds.status === 'ready' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                                          x-text="ds.status"></span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-500" x-text="new Date(ds.created_at).toLocaleDateString()"></td>
+                                <td class="px-4 py-3">
+                                    <button @click="viewDataset(ds.id)" class="text-blue-600 text-sm mr-2">View</button>
+                                    <button @click="enrichDataset(ds.id)" class="text-green-600 text-sm mr-2">Enrich</button>
+                                    <button @click="deleteDataset(ds.id)" class="text-red-600 text-sm">Delete</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="datasets.length === 0">
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No datasets yet. Upload one above!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Products (when dataset selected) -->
+        <div x-show="selectedDataset" class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Products</h2>
+                <button @click="selectedDataset = null" class="text-gray-500 text-sm">Close</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">ID</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Title</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Status</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Score</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-600">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="p in products" :key="p.id">
+                            <tr class="border-t">
+                                <td class="px-4 py-3 font-mono text-sm" x-text="p.external_id"></td>
+                                <td class="px-4 py-3" x-text="getProductTitle(p)"></td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded text-xs"
+                                          :class="p.status === 'enriched' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                          x-text="p.status"></span>
+                                </td>
+                                <td class="px-4 py-3" x-text="p.agent_readiness_score ? (p.agent_readiness_score * 100).toFixed(0) + '%' : '-'"></td>
+                                <td class="px-4 py-3">
+                                    <button @click="enrichProduct(p.id)" class="text-green-600 text-sm">🤖 Enrich</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Agent Trace (when running/completed) -->
+        <div x-show="agentTrace" class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">🤖 Agent Trace</h2>
+                <button @click="agentTrace = null" class="text-gray-500 text-sm">Close</button>
+            </div>
+            <div class="space-y-4">
+                <template x-for="(step, i) in agentTrace?.steps || []" :key="i">
+                    <div class="border rounded p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Step <span x-text="step.step_number"></span></span>
+                            <span x-show="step.tool_name" class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded" x-text="step.tool_name"></span>
+                        </div>
+                        <p x-show="step.thought" class="text-gray-700 mb-2" x-text="step.thought"></p>
+                        <details x-show="step.tool_output" class="text-sm">
+                            <summary class="cursor-pointer text-gray-500">View output</summary>
+                            <pre class="mt-2 bg-gray-50 p-2 rounded text-xs overflow-x-auto" x-text="JSON.stringify(JSON.parse(step.tool_output || '{}'), null, 2)"></pre>
+                        </details>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function app() {
+            return {
+                datasets: [],
+                products: [],
+                selectedDataset: null,
+                agentTrace: null,
+                uploadFile: null,
+                uploadName: '',
+
+                async init() {
+                    await this.loadDatasets();
+                },
+
+                async loadDatasets() {
+                    const res = await fetch('/api/datasets');
+                    const data = await res.json();
+                    this.datasets = data.data || [];
+                },
+
+                async uploadDataset() {
+                    const formData = new FormData();
+                    formData.append('file', this.uploadFile);
+                    formData.append('name', this.uploadName || 'Untitled');
+
+                    const res = await fetch('/api/datasets/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (res.ok) {
+                        this.uploadFile = null;
+                        this.uploadName = '';
+                        await this.loadDatasets();
+                        alert('Dataset uploaded!');
+                    } else {
+                        alert('Upload failed');
+                    }
+                },
+
+                async viewDataset(id) {
+                    this.selectedDataset = id;
+                    const res = await fetch(`/api/datasets/${id}/products`);
+                    const data = await res.json();
+                    this.products = data.data || [];
+                },
+
+                async enrichDataset(id) {
+                    const res = await fetch(`/api/datasets/${id}/enrich`, { method: 'POST' });
+                    if (res.ok) {
+                        alert('Enrichment job started!');
+                    }
+                },
+
+                async enrichProduct(id) {
+                    const res = await fetch(`/api/products/${id}/enrich`, { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ goal: 'GMC compliance + agent readiness' })
+                    });
+                    if (res.ok) {
+                        alert('Agent enrichment started! Check back in a few seconds.');
+                    }
+                },
+
+                async deleteDataset(id) {
+                    if (!confirm('Delete this dataset?')) return;
+                    await fetch(`/api/datasets/${id}`, { method: 'DELETE' });
+                    await this.loadDatasets();
+                },
+
+                getProductTitle(p) {
+                    try {
+                        const data = JSON.parse(p.raw_data);
+                        return data.title || data.Title || '-';
+                    } catch {
+                        return '-';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
