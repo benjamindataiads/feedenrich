@@ -69,7 +69,7 @@ func (a *Agent) SetCallbacks(cb Callbacks) {
 	a.callbacks = cb
 }
 
-// Run starts the agent on a product
+// Run starts the agent on a product - uses FAST mode by default (single API call)
 func (a *Agent) Run(ctx context.Context, product *models.Product, goal string) (*Session, error) {
 	session := &Session{
 		ID:        uuid.New(),
@@ -83,47 +83,34 @@ func (a *Agent) Run(ctx context.Context, product *models.Product, goal string) (
 		StartedAt: time.Now(),
 	}
 
-	// Build initial context
-	var productData models.ProductData
-	if err := json.Unmarshal(product.RawData, &productData); err != nil {
-		return nil, fmt.Errorf("parse product data: %w", err)
+	// Use FAST mode: single consolidated API call
+	proposals, err := a.runFastMode(ctx, product)
+	if err != nil {
+		if a.callbacks.OnError != nil {
+			a.callbacks.OnError(err)
+		}
+		session.Status = "failed"
+		return session, err
 	}
 
-	// Agent loop
-	totalTokens := 0
-	for step := 1; step <= a.config.Agent.MaxSteps; step++ {
-		select {
-		case <-ctx.Done():
-			session.Status = "cancelled"
-			return session, ctx.Err()
-		default:
-		}
-
-		// Execute one reasoning step
-		trace, tokens, done, err := a.executeStep(ctx, session, step)
-		if err != nil {
-			if a.callbacks.OnError != nil {
-				a.callbacks.OnError(err)
-			}
-			session.Status = "failed"
-			return session, err
-		}
-
-		totalTokens += tokens
-		session.Traces = append(session.Traces, *trace)
-
-		if done {
-			break
-		}
-	}
-
+	session.Proposals = proposals
 	session.Status = "completed"
 
-	// Calculate summary
+	// Single trace for the fast execution
+	session.Traces = append(session.Traces, models.AgentTrace{
+		ID:         uuid.New(),
+		SessionID:  session.ID,
+		StepNumber: 1,
+		Thought:    fmt.Sprintf("Fast mode: analyzed product and generated %d proposals", len(proposals)),
+		ToolName:   "fast_optimize",
+		DurationMs: int(time.Since(session.StartedAt).Milliseconds()),
+		CreatedAt:  time.Now(),
+	})
+
 	if a.callbacks.OnComplete != nil {
 		summary := SessionSummary{
-			TotalSteps:       len(session.Traces),
-			TokensUsed:       totalTokens,
+			TotalSteps:       1,
+			TokensUsed:       0, // Not tracked in fast mode
 			DurationMs:       time.Since(session.StartedAt).Milliseconds(),
 			ProposalsCreated: len(session.Proposals),
 		}
@@ -131,6 +118,152 @@ func (a *Agent) Run(ctx context.Context, product *models.Product, goal string) (
 	}
 
 	return session, nil
+}
+
+// runFastMode executes optimization in a single API call
+func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]models.Proposal, error) {
+	// Extract image URL for parallel analysis
+	var imageContext string
+	imageURL := extractImageURL(product.RawData)
+	if imageURL != "" {
+		// Quick image analysis
+		imgResp, err := a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: openai.GPT4oMini,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role: openai.ChatMessageRoleUser,
+					MultiContent: []openai.ChatMessagePart{
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: `Extract facts from this product image. Output JSON: {"color":"observed color","material":"if visible","style":"type/style","gender":"if obvious","observations":["other facts"]}. Only state what you clearly see.`,
+						},
+						{
+							Type:     openai.ChatMessagePartTypeImageURL,
+							ImageURL: &openai.ChatMessageImageURL{URL: imageURL},
+						},
+					},
+				},
+			},
+			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject},
+			MaxTokens:      200,
+			Temperature:    0.1,
+		})
+		if err == nil && len(imgResp.Choices) > 0 {
+			imageContext = "\n\nImage Analysis: " + imgResp.Choices[0].Message.Content
+		}
+	}
+
+	// Main optimization call
+	systemPrompt := `You are a GMC product data optimizer. Analyze and generate optimization proposals.
+
+OUTPUT FORMAT (JSON):
+{
+  "score": 0.65,
+  "proposals": [
+    {
+      "field": "title",
+      "before": "current value",
+      "after": "optimized value", 
+      "rationale": "why this change improves the product",
+      "source": "feed|image|inferred",
+      "confidence": 0.9,
+      "risk_level": "low|medium|high"
+    }
+  ]
+}
+
+RULES:
+1. ALWAYS optimize title if < 60 chars or missing brand/type/key attributes
+2. ALWAYS optimize description if < 100 chars or not informative  
+3. Fill missing GMC attributes: color, material, gender, size when inferable
+4. Use ONLY facts from provided data or image (NO invention)
+5. Be GENEROUS - propose improvements that could be rejected rather than miss opportunities
+6. Title template: Brand + Type + Key Attributes (color, size, material)
+7. Description: Benefits, specs, use cases (100-500 chars)
+
+Generate AT LEAST 2 proposals for any product with room for improvement.`
+
+	userPrompt := fmt.Sprintf("Product Data:\n%s%s\n\nGenerate optimization proposals.", string(product.RawData), imageContext)
+
+	resp, err := a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: openai.GPT4oMini,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+		},
+		ResponseFormat: &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject},
+		Temperature:    0.3,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("optimization call failed: %w", err)
+	}
+
+	// Parse response
+	var output struct {
+		Score     float64 `json:"score"`
+		Proposals []struct {
+			Field      string  `json:"field"`
+			Before     string  `json:"before"`
+			After      string  `json:"after"`
+			Rationale  string  `json:"rationale"`
+			Source     string  `json:"source"`
+			Confidence float64 `json:"confidence"`
+			RiskLevel  string  `json:"risk_level"`
+		} `json:"proposals"`
+	}
+
+	if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &output); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+
+	// Convert to models.Proposal
+	var proposals []models.Proposal
+	for _, p := range output.Proposals {
+		// Skip invalid proposals
+		if p.After == "" || p.After == p.Before {
+			continue
+		}
+		if p.Confidence < 0.3 {
+			continue
+		}
+
+		beforeValue := p.Before
+		sourceJSON, _ := json.Marshal([]models.Source{{Type: p.Source, Confidence: p.Confidence}})
+
+		proposal := models.Proposal{
+			ID:          uuid.New(),
+			ProductID:   product.ID,
+			Field:       p.Field,
+			BeforeValue: &beforeValue,
+			AfterValue:  p.After,
+			Rationale:   []string{p.Rationale},
+			Sources:     sourceJSON,
+			Confidence:  p.Confidence,
+			RiskLevel:   p.RiskLevel,
+			Status:      "proposed",
+			CreatedAt:   time.Now(),
+		}
+		proposals = append(proposals, proposal)
+
+		if a.callbacks.OnProposal != nil {
+			a.callbacks.OnProposal(proposal)
+		}
+	}
+
+	return proposals, nil
+}
+
+func extractImageURL(data json.RawMessage) string {
+	var fields map[string]interface{}
+	json.Unmarshal(data, &fields)
+	for _, key := range []string{"image_link", "image link", "imageLink", "image", "Image"} {
+		if val, ok := fields[key]; ok {
+			if str, ok := val.(string); ok && str != "" {
+				return str
+			}
+		}
+	}
+	return ""
 }
 
 func (a *Agent) executeStep(ctx context.Context, session *Session, stepNum int) (*models.AgentTrace, int, bool, error) {

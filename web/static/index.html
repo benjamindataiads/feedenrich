@@ -1093,33 +1093,22 @@
                 <p class="text-blue-100 text-sm mt-1">6-Agent Pipeline • Evidence-Based • Human-Gated</p>
             </div>
 
-            <!-- Pipeline Stages Overview -->
+            <!-- Fast Pipeline Indicator -->
             <div class="p-3 bg-gray-900/50 border-b border-gray-700">
                 <div class="flex items-center justify-between text-xs">
                     <div class="flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-green-400' : 'text-gray-500'">
-                        <span>✓</span><span>Validate</span>
+                        <span>⚡</span><span>Analyze</span>
                     </div>
                     <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-blue-400' : 'text-gray-500'">
-                        <span>⚖️</span><span>Audit</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-purple-400' : 'text-gray-500'">
+                        <span>👁️</span><span>Image + Data</span>
                     </div>
                     <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-purple-400' : 'text-gray-500'">
-                        <span>👁️</span><span>Evidence</span>
-                    </div>
-                    <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 4 ? 'text-yellow-400' : 'text-gray-500'">
-                        <span>📋</span><span>Plan</span>
-                    </div>
-                    <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 5 ? 'text-orange-400' : 'text-gray-500'">
-                        <span>✏️</span><span>Write</span>
-                    </div>
-                    <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 6 ? 'text-red-400' : 'text-gray-500'">
-                        <span>🛡️</span><span>Control</span>
+                    <div class="flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-green-400' : 'text-gray-500'">
+                        <span>✅</span><span>Proposals</span>
                     </div>
                 </div>
+                <div class="text-center text-xs text-gray-500 mt-1">Fast Mode: 1-2 API calls</div>
             </div>
 
             <!-- Stats Bar -->
@@ -1960,18 +1949,16 @@
                     this.productProposals = this.proposals.filter(p => p.product_id === product.id);
                 },
 
-                // Enrichment with 6-Agent Pipeline
+                // Fast Enrichment (single optimized API call)
                 async enrichProduct(product) {
                     this.currentEnrichingProduct = product.id;
                     this.isAgentThinking = true;
-                    this.pipelineStage = 0;
-                    this.currentOperation = `Processing ${product.external_id}...`;
-                    
-                    // Stage 1: Validate (deterministic)
                     this.pipelineStage = 1;
-                    this.currentStageLabel = 'Stage 1: Validating rules...';
-                    this.addPipelineLog('validate', 'Hard Rule Validator', 'Checking GMC compliance rules', {
-                        agent: 'Deterministic'
+                    this.currentOperation = `Optimizing ${product.external_id}...`;
+                    
+                    // Fast mode: single API call does everything
+                    this.addPipelineLog('validate', '⚡ Fast Mode', 'Analyzing product data...', {
+                        agent: 'Optimizer'
                     });
                     
                     try {
@@ -1982,68 +1969,18 @@
                         });
 
                         if (res.ok) {
-                            // Stage 2: Audit
-                            setTimeout(() => {
-                                this.pipelineStage = 2;
-                                this.currentStageLabel = 'Stage 2: Auditing product...';
-                                this.addPipelineLog('audit', 'Product Auditor', 'JUDGE only - evaluating quality', {
-                                    agent: 'Auditor',
-                                    message: 'No rewriting, no suggestions - structured diagnostics only'
-                                });
-                            }, 500);
-                            
-                            // Stage 3: Evidence
-                            setTimeout(() => {
-                                this.pipelineStage = 3;
-                                this.currentStageLabel = 'Stage 3: Extracting evidence...';
-                                this.addPipelineLog('evidence', 'Image Evidence Agent', 'Extracting visual facts from product image', {
-                                    agent: 'Evidence',
-                                    message: 'Detect, confirm, deny only - no inference allowed'
-                                });
-                            }, 1500);
-                            
-                            // Stage 4: Retrieval
-                            setTimeout(() => {
-                                this.pipelineStage = 4;
-                                this.currentStageLabel = 'Stage 4: Retrieving facts...';
-                                this.addPipelineLog('retrieval', 'Knowledge Retrieval', 'Fetching verifiable facts from sources', {
-                                    agent: 'Retrieval',
-                                    message: 'Every fact must have: source URL + evidence snippet'
-                                });
-                            }, 2500);
-                            
-                            // Stage 5: Plan
-                            setTimeout(() => {
-                                this.pipelineStage = 5;
-                                this.currentStageLabel = 'Stage 5: Planning optimizations...';
-                                this.addPipelineLog('plan', 'Optimization Planner', 'Deciding WHAT to optimize (not HOW)', {
-                                    agent: 'Planner',
-                                    message: 'Decision logic only - no text generation'
-                                });
-                            }, 3500);
-                            
-                            // Stage 6: Write + Control
-                            setTimeout(() => {
-                                this.pipelineStage = 6;
-                                this.currentStageLabel = 'Stage 6: Executing & validating...';
-                                this.addPipelineLog('write', 'Copy Execution', 'Writing under strict constraints', {
-                                    agent: 'Writer',
-                                    message: 'Using only allowed_facts, respecting forbidden_facts'
-                                });
-                            }, 4500);
+                            // Show quick progress (backend is fast now)
+                            this.pipelineStage = 2;
+                            this.currentStageLabel = 'Analyzing & generating proposals...';
+                            this.addPipelineLog('evidence', 'Image + Data Analysis', 'Extracting facts from feed and image (parallel)', {
+                                agent: 'Fast Analyzer'
+                            });
 
-                            setTimeout(() => {
-                                this.addPipelineLog('control', 'Controller Agent', 'Validating changes - ready to REJECT', {
-                                    agent: 'Controller',
-                                    message: 'Checking: facts verified? constraints met? no invention?'
-                                });
-                            }, 5500);
-
-                            // Poll for completion
+                            // Poll for completion (should be quick)
                             this.pollEnrichment(product.id);
                         }
                     } catch (e) {
-                        this.addPipelineLog('rejected', 'Pipeline Error', e.message, { rejection: e.message });
+                        this.addPipelineLog('rejected', 'Error', e.message, { rejection: e.message });
                         this.currentEnrichingProduct = null;
                         this.isAgentThinking = false;
                         this.currentOperation = null;
