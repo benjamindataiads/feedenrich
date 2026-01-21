@@ -53,6 +53,12 @@
                             :class="currentTab === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
                         📊 Dashboard
                     </button>
+                    <button @click="currentTab = 'validation'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'validation' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        ✅ Validation
+                        <span x-show="pendingValidationCount > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-orange-500 rounded-full" x-text="pendingValidationCount"></span>
+                    </button>
                     <button @click="currentTab = 'settings'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
                             :class="currentTab === 'settings' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
@@ -402,6 +408,314 @@
                 </div>
                 
                 </div><!-- End Dashboard Tab -->
+
+                <!-- ============ VALIDATION TAB ============ -->
+                <div x-show="currentTab === 'validation'" x-init="initValidation()" class="space-y-6">
+                    
+                    <!-- Sampling Controls -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold flex items-center gap-2">🎯 Validation par Échantillonnage</h2>
+                                <p class="text-gray-400 text-sm mt-1">Validez un échantillon aléatoire pour estimer la qualité globale</p>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <select x-model="validationDataset" @change="loadValidationSample()" 
+                                        class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Sélectionner un dataset</option>
+                                    <template x-for="ds in datasets" :key="ds.id">
+                                        <option :value="ds.id" x-text="ds.name"></option>
+                                    </template>
+                                </select>
+                                <button @click="loadValidationSample()" 
+                                        :disabled="!validationDataset"
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
+                                    🔄 Nouvel échantillon
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Statistical Confidence Panel -->
+                        <div class="grid grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold text-blue-400" x-text="validationStats.reviewed"></div>
+                                <div class="text-xs text-gray-400 mt-1">Produits validés</div>
+                            </div>
+                            <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold" 
+                                     :class="validationStats.approvalRate >= 0.8 ? 'text-green-400' : validationStats.approvalRate >= 0.6 ? 'text-yellow-400' : 'text-red-400'"
+                                     x-text="(validationStats.approvalRate * 100).toFixed(0) + '%'"></div>
+                                <div class="text-xs text-gray-400 mt-1">Taux d'approbation</div>
+                            </div>
+                            <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold text-purple-400" x-text="validationStats.confidence + '%'"></div>
+                                <div class="text-xs text-gray-400 mt-1">Niveau de confiance</div>
+                            </div>
+                            <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                                <div class="text-3xl font-bold" 
+                                     :class="validationStats.pValue < 0.05 ? 'text-green-400' : 'text-orange-400'"
+                                     x-text="validationStats.pValue < 0.001 ? '<0.001' : validationStats.pValue.toFixed(3)"></div>
+                                <div class="text-xs text-gray-400 mt-1">p-value</div>
+                            </div>
+                        </div>
+
+                        <!-- Confidence Interpretation -->
+                        <div class="rounded-lg p-4 mb-6"
+                             :class="validationStats.reviewed < 5 ? 'bg-gray-700/30 border border-gray-600' : 
+                                     validationStats.pValue < 0.05 ? 'bg-green-500/10 border border-green-500/30' : 
+                                     'bg-orange-500/10 border border-orange-500/30'">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl" x-text="validationStats.reviewed < 5 ? '📊' : validationStats.pValue < 0.05 ? '✅' : '⚠️'"></span>
+                                <div>
+                                    <div class="font-medium" x-text="getConfidenceMessage()"></div>
+                                    <div class="text-sm text-gray-400" x-text="getConfidenceDetail()"></div>
+                                </div>
+                            </div>
+                            <!-- Progress to significance -->
+                            <div x-show="validationStats.reviewed < validationStats.sampleSizeNeeded" class="mt-3">
+                                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>Progression vers significativité</span>
+                                    <span x-text="validationStats.reviewed + '/' + validationStats.sampleSizeNeeded + ' produits'"></span>
+                                </div>
+                                <div class="w-full bg-gray-700 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full transition-all" 
+                                         :style="'width: ' + Math.min(100, (validationStats.reviewed / validationStats.sampleSizeNeeded) * 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Margin of Error Display -->
+                        <div x-show="validationStats.reviewed >= 5" class="bg-gray-700/30 rounded-lg p-4">
+                            <div class="text-sm text-gray-400 mb-2">Intervalle de confiance à 95%</div>
+                            <div class="flex items-center gap-4">
+                                <div class="flex-1 relative h-8 bg-gray-700 rounded">
+                                    <!-- Confidence interval bar -->
+                                    <div class="absolute h-full bg-blue-500/30 rounded"
+                                         :style="'left: ' + Math.max(0, (validationStats.approvalRate - validationStats.marginOfError) * 100) + '%; width: ' + (validationStats.marginOfError * 200) + '%'"></div>
+                                    <!-- Point estimate -->
+                                    <div class="absolute top-0 h-full w-1 bg-blue-500"
+                                         :style="'left: ' + (validationStats.approvalRate * 100) + '%'"></div>
+                                    <!-- Scale markers -->
+                                    <div class="absolute bottom-0 left-0 w-full flex justify-between text-xs text-gray-500 -mb-5">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm whitespace-nowrap">
+                                    <span class="text-blue-400 font-medium" x-text="((validationStats.approvalRate - validationStats.marginOfError) * 100).toFixed(0) + '% - ' + ((validationStats.approvalRate + validationStats.marginOfError) * 100).toFixed(0) + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Product Validation -->
+                    <div x-show="currentValidationProduct" class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                        <!-- Product Header -->
+                        <div class="p-4 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center gap-4">
+                            <div class="w-16 h-16 bg-gray-900 rounded-lg overflow-hidden flex-shrink-0">
+                                <img :src="getProductImage(currentValidationProduct)" 
+                                     @error="$event.target.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23374151%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%239CA3AF%22 font-size=%2230%22>📦</text></svg>'"
+                                     class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-blue-100">Produit <span x-text="validationStats.currentIndex + 1"></span> / <span x-text="validationSample.length"></span></div>
+                                <div class="font-bold text-lg" x-text="getProductTitle(currentValidationProduct)"></div>
+                                <div class="text-sm text-blue-200" x-text="currentValidationProduct?.external_id"></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-blue-100">Score actuel</div>
+                                <div class="text-2xl font-bold" x-text="((currentValidationProduct?.agent_readiness_score || 0) * 100).toFixed(0) + '%'"></div>
+                            </div>
+                        </div>
+
+                        <!-- Proposals for this product -->
+                        <div class="p-6 space-y-4">
+                            <template x-for="(proposal, idx) in currentProductProposals" :key="proposal.id">
+                                <div class="bg-gray-700/30 rounded-lg border border-gray-600 overflow-hidden">
+                                    <!-- Proposal Header -->
+                                    <div class="px-4 py-3 bg-gray-700/50 flex justify-between items-center">
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-lg" x-text="getFieldIcon(proposal.field)"></span>
+                                            <div>
+                                                <div class="font-medium" x-text="proposal.field"></div>
+                                                <div class="text-xs text-gray-400">
+                                                    Confiance: <span x-text="(proposal.confidence * 100).toFixed(0) + '%'"></span>
+                                                    • Risque: <span :class="proposal.risk_level === 'low' ? 'text-green-400' : proposal.risk_level === 'medium' ? 'text-yellow-400' : 'text-red-400'" x-text="proposal.risk_level"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs px-2 py-1 rounded"
+                                                  :class="proposal.validation_status === 'approved' ? 'bg-green-500/20 text-green-400' : 
+                                                          proposal.validation_status === 'rejected' ? 'bg-red-500/20 text-red-400' : 
+                                                          proposal.validation_status === 'edited' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-600 text-gray-400'"
+                                                  x-text="proposal.validation_status || 'pending'"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rationale -->
+                                    <div class="px-4 py-3 bg-purple-500/5 border-b border-gray-600">
+                                        <div class="text-xs text-purple-400 font-medium mb-1">💡 Rationnel de l'optimisation</div>
+                                        <p class="text-sm text-gray-300" x-text="proposal.rationale || generateRationale(proposal)"></p>
+                                        <!-- Sources -->
+                                        <div x-show="proposal.sources?.length" class="mt-2 flex flex-wrap gap-1">
+                                            <template x-for="source in (proposal.sources || [])" :key="source">
+                                                <span class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-400">
+                                                    📎 <span x-text="source"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- Before / After Comparison -->
+                                    <div class="p-4 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div class="text-xs text-gray-500 mb-1">Avant</div>
+                                            <div class="bg-red-500/10 border border-red-500/30 rounded p-3 text-sm" x-text="proposal.before_value || '(vide)'"></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs text-gray-500 mb-1">Après (proposition)</div>
+                                            <div x-show="!proposal.editing" 
+                                                 class="bg-green-500/10 border border-green-500/30 rounded p-3 text-sm cursor-pointer hover:border-green-400"
+                                                 @click="proposal.editing = true; proposal.editValue = proposal.edited_value || proposal.after_value"
+                                                 x-text="proposal.edited_value || proposal.after_value"></div>
+                                            <div x-show="proposal.editing" class="space-y-2">
+                                                <textarea x-model="proposal.editValue" 
+                                                          class="w-full bg-gray-900 border border-blue-500 rounded p-3 text-sm focus:outline-none"
+                                                          rows="3"></textarea>
+                                                <div class="flex gap-2">
+                                                    <button @click="saveProposalEdit(proposal)" 
+                                                            class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Sauvegarder</button>
+                                                    <button @click="proposal.editing = false" 
+                                                            class="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">Annuler</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Individual Proposal Actions -->
+                                    <div class="px-4 py-3 bg-gray-700/30 flex justify-between items-center">
+                                        <div class="text-xs text-gray-500">
+                                            Cliquez sur "Après" pour éditer manuellement
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="validateProposal(proposal, 'rejected')" 
+                                                    :class="proposal.validation_status === 'rejected' ? 'bg-red-600' : 'bg-gray-600 hover:bg-red-600'"
+                                                    class="px-3 py-1.5 text-white text-sm rounded transition-colors">
+                                                ❌ Rejeter
+                                            </button>
+                                            <button @click="validateProposal(proposal, 'approved')" 
+                                                    :class="proposal.validation_status === 'approved' ? 'bg-green-600' : 'bg-gray-600 hover:bg-green-600'"
+                                                    class="px-3 py-1.5 text-white text-sm rounded transition-colors">
+                                                ✅ Approuver
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- No proposals -->
+                            <div x-show="currentProductProposals.length === 0" class="text-center py-8 text-gray-500">
+                                <div class="text-4xl mb-2">📭</div>
+                                <p>Aucune proposition pour ce produit</p>
+                            </div>
+                        </div>
+
+                        <!-- Product Navigation -->
+                        <div class="p-4 border-t border-gray-700 bg-gray-900/50 flex justify-between items-center">
+                            <button @click="previousValidationProduct()" 
+                                    :disabled="validationStats.currentIndex === 0"
+                                    class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50">
+                                ← Précédent
+                            </button>
+                            <div class="flex gap-2">
+                                <button @click="skipProduct()" 
+                                        class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">
+                                    Passer ↷
+                                </button>
+                                <button @click="validateProduct('rejected')" 
+                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                    ❌ Rejeter tout
+                                </button>
+                                <button @click="validateProduct('approved')" 
+                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    ✅ Approuver tout
+                                </button>
+                            </div>
+                            <button @click="nextValidationProduct()" 
+                                    :disabled="validationStats.currentIndex >= validationSample.length - 1"
+                                    class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50">
+                                Suivant →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="!currentValidationProduct && validationDataset" class="bg-gray-800 rounded-xl p-12 border border-gray-700 text-center">
+                        <div class="text-6xl mb-4">🎲</div>
+                        <h3 class="text-xl font-bold mb-2">Prêt à valider</h3>
+                        <p class="text-gray-400 mb-4">Cliquez sur "Nouvel échantillon" pour commencer la validation</p>
+                    </div>
+
+                    <!-- Validation Complete -->
+                    <div x-show="validationComplete" class="bg-gray-800 rounded-xl p-8 border border-gray-700">
+                        <div class="text-center mb-6">
+                            <div class="text-6xl mb-4" x-text="validationStats.approvalRate >= 0.8 ? '🎉' : validationStats.approvalRate >= 0.6 ? '👍' : '⚠️'"></div>
+                            <h3 class="text-2xl font-bold mb-2">Validation terminée</h3>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-6 max-w-2xl mx-auto">
+                            <div class="bg-gray-700/30 rounded-lg p-4">
+                                <div class="text-sm text-gray-400 mb-1">Taux d'approbation</div>
+                                <div class="text-3xl font-bold" 
+                                     :class="validationStats.approvalRate >= 0.8 ? 'text-green-400' : validationStats.approvalRate >= 0.6 ? 'text-yellow-400' : 'text-red-400'"
+                                     x-text="(validationStats.approvalRate * 100).toFixed(1) + '%'"></div>
+                            </div>
+                            <div class="bg-gray-700/30 rounded-lg p-4">
+                                <div class="text-sm text-gray-400 mb-1">Intervalle de confiance (95%)</div>
+                                <div class="text-3xl font-bold text-blue-400" 
+                                     x-text="'±' + (validationStats.marginOfError * 100).toFixed(1) + '%'"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 rounded-lg text-center"
+                             :class="validationStats.pValue < 0.05 ? 'bg-green-500/10 border border-green-500/30' : 'bg-orange-500/10 border border-orange-500/30'">
+                            <p class="text-lg" x-text="validationStats.pValue < 0.05 ? 
+                                'Résultat statistiquement significatif ! Vous pouvez appliquer ces optimisations avec confiance.' : 
+                                'Échantillon trop petit pour une conclusion définitive. Continuez la validation.'"></p>
+                        </div>
+
+                        <div class="mt-6 flex justify-center gap-4">
+                            <button @click="loadValidationSample()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                🔄 Nouvel échantillon
+                            </button>
+                            <button @click="applyApprovedProposals()" 
+                                    :disabled="validationStats.approvalRate < 0.5"
+                                    class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                                ✅ Appliquer les optimisations approuvées
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Validation History -->
+                    <div x-show="validationHistory.length > 0" class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h3 class="font-bold mb-4">📜 Historique de validation</h3>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            <template x-for="(item, idx) in validationHistory" :key="idx">
+                                <div class="flex items-center justify-between text-sm bg-gray-700/30 rounded px-3 py-2">
+                                    <div class="flex items-center gap-2">
+                                        <span x-text="item.status === 'approved' ? '✅' : item.status === 'rejected' ? '❌' : '↷'"></span>
+                                        <span x-text="item.productId"></span>
+                                        <span class="text-gray-500">•</span>
+                                        <span class="text-gray-400" x-text="item.proposalCount + ' proposals'"></span>
+                                    </div>
+                                    <span class="text-xs text-gray-500" x-text="item.time"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div><!-- End Validation Tab -->
 
                 <!-- ============ SETTINGS TAB ============ -->
                 <div x-show="currentTab === 'settings'" x-init="loadPrompts()" class="space-y-6">
@@ -1061,6 +1375,25 @@
                 expandedPrompts: [],
                 dirtyPrompts: [],
                 savingPrompt: null,
+
+                // Validation state
+                validationDataset: '',
+                validationSample: [],
+                currentValidationProduct: null,
+                currentProductProposals: [],
+                validationStats: {
+                    reviewed: 0,
+                    approved: 0,
+                    rejected: 0,
+                    currentIndex: 0,
+                    approvalRate: 0,
+                    confidence: 95,
+                    pValue: 1,
+                    marginOfError: 0,
+                    sampleSizeNeeded: 30
+                },
+                validationHistory: [],
+                validationComplete: false,
                 
                 // Pipeline state
                 pipelineStage: 0,
@@ -1100,6 +1433,10 @@
                         }
                         return true;
                     });
+                },
+
+                get pendingValidationCount() {
+                    return this.proposalsWithProducts.filter(p => p.status === 'proposed').length;
                 },
 
                 async loadDatasetStats(datasetId) {
@@ -1182,6 +1519,303 @@
                         info: '📌'
                     };
                     return icons[type] || '📌';
+                },
+
+                // ============ VALIDATION METHODS ============
+                
+                initValidation() {
+                    // Auto-select first dataset if available
+                    if (this.datasets.length > 0 && !this.validationDataset) {
+                        this.validationDataset = this.datasets[0].id;
+                    }
+                },
+
+                async loadValidationSample() {
+                    if (!this.validationDataset) return;
+                    
+                    // Reset validation state
+                    this.validationComplete = false;
+                    this.validationStats = {
+                        reviewed: 0,
+                        approved: 0,
+                        rejected: 0,
+                        currentIndex: 0,
+                        approvalRate: 0,
+                        confidence: 95,
+                        pValue: 1,
+                        marginOfError: 0,
+                        sampleSizeNeeded: 30
+                    };
+                    this.validationHistory = [];
+                    
+                    // Load products from selected dataset
+                    const res = await fetch(`/api/datasets/${this.validationDataset}/products`);
+                    const data = await res.json();
+                    const allProducts = data.data || [];
+                    
+                    // Get products with proposals
+                    const productsWithProposals = allProducts.filter(p => 
+                        this.proposalsWithProducts.some(prop => prop.product_id === p.id && prop.status === 'proposed')
+                    );
+                    
+                    // Random shuffle and take sample
+                    const shuffled = productsWithProposals.sort(() => Math.random() - 0.5);
+                    this.validationSample = shuffled.slice(0, Math.min(50, shuffled.length));
+                    
+                    // Calculate sample size needed for statistical significance
+                    const populationSize = productsWithProposals.length;
+                    this.validationStats.sampleSizeNeeded = this.calculateSampleSize(populationSize, 0.95, 0.1);
+                    
+                    // Load first product
+                    if (this.validationSample.length > 0) {
+                        this.loadValidationProduct(0);
+                    }
+                },
+
+                loadValidationProduct(index) {
+                    if (index < 0 || index >= this.validationSample.length) return;
+                    
+                    this.validationStats.currentIndex = index;
+                    this.currentValidationProduct = this.validationSample[index];
+                    
+                    // Load proposals for this product
+                    this.currentProductProposals = this.proposalsWithProducts
+                        .filter(p => p.product_id === this.currentValidationProduct.id && p.status === 'proposed')
+                        .map(p => ({
+                            ...p,
+                            validation_status: null,
+                            editing: false,
+                            editValue: '',
+                            edited_value: null
+                        }));
+                },
+
+                nextValidationProduct() {
+                    if (this.validationStats.currentIndex < this.validationSample.length - 1) {
+                        this.loadValidationProduct(this.validationStats.currentIndex + 1);
+                    } else {
+                        this.validationComplete = true;
+                    }
+                },
+
+                previousValidationProduct() {
+                    if (this.validationStats.currentIndex > 0) {
+                        this.loadValidationProduct(this.validationStats.currentIndex - 1);
+                    }
+                },
+
+                validateProposal(proposal, status) {
+                    proposal.validation_status = status;
+                },
+
+                async saveProposalEdit(proposal) {
+                    proposal.edited_value = proposal.editValue;
+                    proposal.editing = false;
+                    proposal.validation_status = 'edited';
+                    
+                    // Save to backend
+                    try {
+                        await fetch(`/api/proposals/${proposal.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                status: 'proposed',
+                                after_value: proposal.editValue 
+                            })
+                        });
+                    } catch (e) {
+                        console.error('Failed to save edit:', e);
+                    }
+                },
+
+                async validateProduct(status) {
+                    // Mark all proposals for this product
+                    for (const proposal of this.currentProductProposals) {
+                        if (!proposal.validation_status) {
+                            proposal.validation_status = status;
+                        }
+                        
+                        // Update backend
+                        const action = proposal.validation_status === 'approved' ? 'accept' : 
+                                       proposal.validation_status === 'rejected' ? 'reject' : null;
+                        if (action) {
+                            try {
+                                await fetch(`/api/proposals/${proposal.id}/${action}`, { method: 'POST' });
+                            } catch (e) {
+                                console.error('Failed to update proposal:', e);
+                            }
+                        }
+                    }
+                    
+                    // Update stats
+                    this.validationStats.reviewed++;
+                    if (status === 'approved') {
+                        this.validationStats.approved++;
+                    } else {
+                        this.validationStats.rejected++;
+                    }
+                    
+                    // Add to history
+                    this.validationHistory.unshift({
+                        productId: this.currentValidationProduct.external_id,
+                        status: status,
+                        proposalCount: this.currentProductProposals.length,
+                        time: new Date().toLocaleTimeString()
+                    });
+                    
+                    // Recalculate statistics
+                    this.updateValidationStatistics();
+                    
+                    // Move to next product
+                    this.nextValidationProduct();
+                },
+
+                skipProduct() {
+                    this.validationHistory.unshift({
+                        productId: this.currentValidationProduct.external_id,
+                        status: 'skipped',
+                        proposalCount: this.currentProductProposals.length,
+                        time: new Date().toLocaleTimeString()
+                    });
+                    this.nextValidationProduct();
+                },
+
+                updateValidationStatistics() {
+                    const n = this.validationStats.reviewed;
+                    const k = this.validationStats.approved;
+                    
+                    if (n === 0) {
+                        this.validationStats.approvalRate = 0;
+                        this.validationStats.marginOfError = 0;
+                        this.validationStats.pValue = 1;
+                        return;
+                    }
+                    
+                    // Point estimate
+                    const p = k / n;
+                    this.validationStats.approvalRate = p;
+                    
+                    // Margin of error (95% CI using Wilson score interval for small samples)
+                    const z = 1.96; // 95% confidence
+                    const denominator = 1 + z * z / n;
+                    const center = (p + z * z / (2 * n)) / denominator;
+                    const marginWilson = (z / denominator) * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+                    this.validationStats.marginOfError = marginWilson;
+                    
+                    // P-value for testing H0: p = 0.5 (null hypothesis: 50% approval)
+                    // Using normal approximation for binomial
+                    const p0 = 0.5;
+                    const se = Math.sqrt(p0 * (1 - p0) / n);
+                    const zScore = (p - p0) / se;
+                    // Two-tailed p-value
+                    this.validationStats.pValue = 2 * (1 - this.normalCDF(Math.abs(zScore)));
+                },
+
+                // Normal CDF approximation
+                normalCDF(x) {
+                    const a1 = 0.254829592;
+                    const a2 = -0.284496736;
+                    const a3 = 1.421413741;
+                    const a4 = -1.453152027;
+                    const a5 = 1.061405429;
+                    const p = 0.3275911;
+                    
+                    const sign = x < 0 ? -1 : 1;
+                    x = Math.abs(x) / Math.sqrt(2);
+                    
+                    const t = 1.0 / (1.0 + p * x);
+                    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+                    
+                    return 0.5 * (1.0 + sign * y);
+                },
+
+                // Calculate required sample size
+                calculateSampleSize(population, confidence, marginOfError) {
+                    // Z-score for confidence level
+                    const zScores = { 0.90: 1.645, 0.95: 1.96, 0.99: 2.576 };
+                    const z = zScores[confidence] || 1.96;
+                    
+                    // Standard formula for sample size with finite population correction
+                    const p = 0.5; // Maximum variability
+                    const e = marginOfError;
+                    
+                    const n0 = (z * z * p * (1 - p)) / (e * e);
+                    const n = n0 / (1 + (n0 - 1) / population);
+                    
+                    return Math.ceil(Math.max(n, 5)); // Minimum 5 samples
+                },
+
+                getConfidenceMessage() {
+                    const stats = this.validationStats;
+                    if (stats.reviewed < 5) {
+                        return 'Démarrez la validation';
+                    }
+                    if (stats.pValue < 0.05) {
+                        if (stats.approvalRate >= 0.8) {
+                            return 'Excellente qualité confirmée !';
+                        } else if (stats.approvalRate >= 0.6) {
+                            return 'Qualité acceptable';
+                        } else {
+                            return 'Qualité insuffisante - révision nécessaire';
+                        }
+                    }
+                    return 'Continuez la validation pour plus de certitude';
+                },
+
+                getConfidenceDetail() {
+                    const stats = this.validationStats;
+                    if (stats.reviewed < 5) {
+                        return `Validez au moins 5 produits pour obtenir des statistiques. Objectif recommandé: ${stats.sampleSizeNeeded} produits.`;
+                    }
+                    if (stats.pValue < 0.05) {
+                        return `Avec ${stats.reviewed} produits validés, on peut affirmer avec 95% de confiance que le taux réel est entre ${Math.max(0, (stats.approvalRate - stats.marginOfError) * 100).toFixed(0)}% et ${Math.min(100, (stats.approvalRate + stats.marginOfError) * 100).toFixed(0)}%.`;
+                    }
+                    return `${stats.sampleSizeNeeded - stats.reviewed} produits supplémentaires recommandés pour une conclusion statistiquement significative.`;
+                },
+
+                generateRationale(proposal) {
+                    const rationales = {
+                        title: `Titre optimisé selon le template GMC pour la catégorie. Ajout des attributs clés (marque, type, caractéristiques) pour améliorer la visibilité et le CTR.`,
+                        description: `Description enrichie avec les spécifications techniques et bénéfices produit. Structure optimisée pour le SEO et la conversion.`,
+                        color: `Couleur extraite de l'analyse d'image avec ${(proposal.confidence * 100).toFixed(0)}% de confiance. Correspond au standard GMC pour les filtres de recherche.`,
+                        material: `Matériau identifié via analyse de l'image produit et/ou recherche web. Améliore la pertinence des recherches par matériau.`,
+                        gender: `Genre déduit du contexte produit (catégorie, titre, image). Permet un meilleur ciblage dans les campagnes Shopping.`,
+                        size: `Taille standardisée selon les conventions GMC pour la catégorie produit.`,
+                        brand: `Marque identifiée dans le titre/description existant ou via recherche.`
+                    };
+                    return rationales[proposal.field.toLowerCase()] || 
+                           `Optimisation basée sur l'analyse du produit et les meilleures pratiques GMC. Source: ${proposal.source || 'analyse AI'}.`;
+                },
+
+                getFieldIcon(field) {
+                    const icons = {
+                        title: '📝', description: '📄', color: '🎨', material: '🧵',
+                        gender: '👤', size: '📏', brand: '🏷️', price: '💰',
+                        category: '📁', image: '🖼️'
+                    };
+                    return icons[field.toLowerCase()] || '📋';
+                },
+
+                async applyApprovedProposals() {
+                    // Apply all approved proposals from the validation session
+                    this.addPipelineLog('info', 'Applying approved proposals', 'Updating product data...');
+                    
+                    try {
+                        const res = await fetch('/api/proposals/bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'accept',
+                                only_status: 'proposed'
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        this.addPipelineLog('approved', 'Proposals applied', `${data.updated} proposals accepted`);
+                        await this.loadProposalsWithProducts();
+                    } catch (e) {
+                        this.addPipelineLog('rejected', 'Application failed', e.message);
+                    }
                 },
 
                 // Data loading
