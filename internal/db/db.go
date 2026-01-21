@@ -391,3 +391,51 @@ func (q *Queries) DeleteRule(ctx context.Context, id uuid.UUID) error {
 	_, err := q.pool.Exec(ctx, `DELETE FROM rules WHERE id = $1`, id)
 	return err
 }
+
+// Prompt operations
+
+func (q *Queries) ListPrompts(ctx context.Context) ([]models.Prompt, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT id, name, description, content, category, is_default, updated_at, created_at
+		FROM prompts ORDER BY category, name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var prompts []models.Prompt
+	for rows.Next() {
+		var p models.Prompt
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Content, &p.Category, &p.IsDefault, &p.UpdatedAt, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		prompts = append(prompts, p)
+	}
+	return prompts, nil
+}
+
+func (q *Queries) GetPrompt(ctx context.Context, id string) (*models.Prompt, error) {
+	var p models.Prompt
+	err := q.pool.QueryRow(ctx, `
+		SELECT id, name, description, content, category, is_default, updated_at, created_at
+		FROM prompts WHERE id = $1
+	`, id).Scan(&p.ID, &p.Name, &p.Description, &p.Content, &p.Category, &p.IsDefault, &p.UpdatedAt, &p.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (q *Queries) UpdatePrompt(ctx context.Context, id string, content string) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE prompts SET content = $2, updated_at = NOW() WHERE id = $1
+	`, id, content)
+	return err
+}
+
+func (q *Queries) ResetPrompt(ctx context.Context, id string) error {
+	// This would need a separate defaults table or we just re-run migrations
+	// For now, we'll handle this in the handler by re-inserting default
+	return nil
+}

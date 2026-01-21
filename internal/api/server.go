@@ -85,6 +85,11 @@ func (s *Server) setupRoutes() {
 	api.PATCH("/rules/:id", h.UpdateRule)
 	api.DELETE("/rules/:id", h.DeleteRule)
 
+	// Prompts
+	api.GET("/prompts", h.ListPrompts)
+	api.GET("/prompts/:id", h.GetPrompt)
+	api.PATCH("/prompts/:id", h.UpdatePrompt)
+
 	// Serve static files for frontend
 	s.echo.Static("/", "web/static")
 }

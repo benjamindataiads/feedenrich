@@ -404,216 +404,168 @@
                 </div><!-- End Dashboard Tab -->
 
                 <!-- ============ SETTINGS TAB ============ -->
-                <div x-show="currentTab === 'settings'" class="space-y-6">
+                <div x-show="currentTab === 'settings'" x-init="loadPrompts()" class="space-y-6">
+                    
+                    <!-- Editable Prompts Section -->
                     <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">⚙️ Agent Settings</h2>
-                        <p class="text-gray-400 mb-6">Configure how the AI agent analyzes and optimizes your product data.</p>
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold flex items-center gap-2">🤖 Agent Prompts</h2>
+                                <p class="text-gray-400 text-sm mt-1">Edit the prompts used by the AI agent at each step</p>
+                            </div>
+                            <button @click="loadPrompts()" class="text-blue-400 hover:text-blue-300 text-sm">↻ Refresh</button>
+                        </div>
                         
-                        <!-- Title Templates by Category -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-blue-400">📝 Title Templates by Category</h3>
-                            <div class="space-y-3">
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="font-medium">👕 Apparel</span>
-                                        <span class="text-xs text-gray-400">Fashion, Clothing</span>
-                                    </div>
-                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
-                                        {brand} + {gender} + {type} + {color} + {size} + {material}
-                                    </code>
-                                    <p class="text-xs text-gray-500 mt-2">Example: Nike Men's Air Max 90 Black Size 42 Leather</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="font-medium">📱 Electronics</span>
-                                        <span class="text-xs text-gray-400">Tech, Gadgets</span>
-                                    </div>
-                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
-                                        {brand} + {line} + {model} + {key_spec} + {capacity}
-                                    </code>
-                                    <p class="text-xs text-gray-500 mt-2">Example: Samsung Galaxy S24 Ultra 5G 256GB Titanium</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="font-medium">🏠 Home & Garden</span>
-                                        <span class="text-xs text-gray-400">Furniture, Decor</span>
-                                    </div>
-                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
-                                        {brand} + {type} + {material} + {dimensions} + {style}
-                                    </code>
-                                    <p class="text-xs text-gray-500 mt-2">Example: IKEA KALLAX Shelf Wood White 77x147cm Modern</p>
-                                </div>
-                                <div class="bg-gray-700/50 rounded-lg p-4">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="font-medium">💄 Beauty</span>
-                                        <span class="text-xs text-gray-400">Cosmetics, Skincare</span>
-                                    </div>
-                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
-                                        {brand} + {line} + {type} + {variant} + {size}
-                                    </code>
-                                    <p class="text-xs text-gray-500 mt-2">Example: L'Oréal Revitalift Night Cream Anti-Wrinkle 50ml</p>
-                                </div>
-                            </div>
+                        <div x-show="prompts.length === 0" class="text-center text-gray-500 py-8">
+                            Loading prompts...
                         </div>
+                        
+                        <div class="space-y-4">
+                            <template x-for="prompt in prompts" :key="prompt.id">
+                                <div class="bg-gray-700/30 rounded-lg border border-gray-600 overflow-hidden">
+                                    <!-- Prompt Header -->
+                                    <div class="flex justify-between items-center px-4 py-3 bg-gray-700/50 cursor-pointer"
+                                         @click="togglePrompt(prompt.id)">
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-lg" x-text="getPromptIcon(prompt.id)"></span>
+                                            <div>
+                                                <div class="font-medium" x-text="prompt.name"></div>
+                                                <div class="text-xs text-gray-400" x-text="prompt.description"></div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-xs px-2 py-1 rounded"
+                                                  :class="prompt.category === 'agent' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'"
+                                                  x-text="prompt.category"></span>
+                                            <span class="text-gray-400 transform transition-transform"
+                                                  :class="expandedPrompts.includes(prompt.id) ? 'rotate-180' : ''">▼</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Prompt Content (expandable) -->
+                                    <div x-show="expandedPrompts.includes(prompt.id)" 
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 -translate-y-2"
+                                         x-transition:enter-end="opacity-100 translate-y-0"
+                                         class="p-4 border-t border-gray-600">
+                                        <textarea :id="'prompt-' + prompt.id"
+                                                  x-model="promptEdits[prompt.id]"
+                                                  @input="markPromptDirty(prompt.id)"
+                                                  class="w-full h-64 bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-sm font-mono text-gray-300 focus:outline-none focus:border-blue-500 resize-y"
+                                                  placeholder="Enter prompt content..."></textarea>
+                                        
+                                        <!-- Variables hint -->
+                                        <div class="mt-2 text-xs text-gray-500">
+                                            <span class="font-medium">Available variables:</span>
+                                            <span x-show="prompt.id === 'system_prompt'">{{goal}}</span>
+                                            <span x-show="prompt.id === 'analyze_product'">{{product_data}}</span>
+                                            <span x-show="prompt.id === 'analyze_image'">{{questions}}</span>
+                                            <span x-show="prompt.id === 'optimize_title' || prompt.id === 'optimize_description'">{{current_value}}, {{context}}, {{constraints}}</span>
+                                        </div>
+                                        
+                                        <!-- Actions -->
+                                        <div class="flex justify-between items-center mt-4">
+                                            <div class="text-xs text-gray-500">
+                                                Last updated: <span x-text="new Date(prompt.updated_at).toLocaleString()"></span>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <button @click="resetPromptEdit(prompt)"
+                                                        :disabled="!dirtyPrompts.includes(prompt.id)"
+                                                        class="px-3 py-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-30">
+                                                    Reset
+                                                </button>
+                                                <button @click="savePrompt(prompt.id)"
+                                                        :disabled="!dirtyPrompts.includes(prompt.id) || savingPrompt === prompt.id"
+                                                        class="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
+                                                    <span x-show="savingPrompt !== prompt.id">Save Changes</span>
+                                                    <span x-show="savingPrompt === prompt.id" class="pulse">Saving...</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
 
-                        <!-- Validation Rules -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-red-400">🔴 Critical Validation Rules</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">🚫 Policy Violations</div>
-                                    <p class="text-sm text-gray-400">Prohibited products, false claims</p>
+                    <!-- Reference: GMC Rules -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">📋 GMC Reference</h2>
+                        
+                        <!-- Collapsible sections -->
+                        <details class="mb-4">
+                            <summary class="cursor-pointer text-blue-400 font-medium py-2">📝 Title Templates by Category</summary>
+                            <div class="mt-3 space-y-2 pl-4">
+                                <div class="bg-gray-700/30 rounded p-3">
+                                    <span class="font-medium">👕 Apparel:</span>
+                                    <code class="text-sm text-green-400 ml-2">{brand} + {gender} + {type} + {color} + {size} + {material}</code>
                                 </div>
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">💰 Price Mismatch</div>
-                                    <p class="text-sm text-gray-400">price, sale_price sync</p>
+                                <div class="bg-gray-700/30 rounded p-3">
+                                    <span class="font-medium">📱 Electronics:</span>
+                                    <code class="text-sm text-green-400 ml-2">{brand} + {line} + {model} + {key_spec} + {capacity}</code>
                                 </div>
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">📦 Availability</div>
-                                    <p class="text-sm text-gray-400">Stock sync issues</p>
+                                <div class="bg-gray-700/30 rounded p-3">
+                                    <span class="font-medium">🏠 Home:</span>
+                                    <code class="text-sm text-green-400 ml-2">{brand} + {type} + {material} + {dimensions} + {style}</code>
                                 </div>
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">🔗 Invalid URLs</div>
-                                    <p class="text-sm text-gray-400">link, image_link validation</p>
-                                </div>
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">🏷️ Invalid GTIN</div>
-                                    <p class="text-sm text-gray-400">GTIN format check</p>
-                                </div>
-                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <div class="font-medium text-red-400 mb-2">🖼️ Image Policy</div>
-                                    <p class="text-sm text-gray-400">Watermarks, text overlays</p>
+                                <div class="bg-gray-700/30 rounded p-3">
+                                    <span class="font-medium">💄 Beauty:</span>
+                                    <code class="text-sm text-green-400 ml-2">{brand} + {line} + {type} + {variant} + {size}</code>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Required Attributes -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-orange-400">🟠 Required Attributes</h3>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🆔</div>
-                                    <div class="font-medium text-sm">id</div>
+                        </details>
+                        
+                        <details class="mb-4">
+                            <summary class="cursor-pointer text-red-400 font-medium py-2">🔴 Critical Validation Rules</summary>
+                            <div class="mt-3 grid grid-cols-3 gap-2 pl-4">
+                                <div class="bg-red-500/10 rounded p-2 text-sm">🚫 Policy Violations</div>
+                                <div class="bg-red-500/10 rounded p-2 text-sm">💰 Price Mismatch</div>
+                                <div class="bg-red-500/10 rounded p-2 text-sm">📦 Availability</div>
+                                <div class="bg-red-500/10 rounded p-2 text-sm">🔗 Invalid URLs</div>
+                                <div class="bg-red-500/10 rounded p-2 text-sm">🏷️ Invalid GTIN</div>
+                                <div class="bg-red-500/10 rounded p-2 text-sm">🖼️ Image Policy</div>
+                            </div>
+                        </details>
+                        
+                        <details class="mb-4">
+                            <summary class="cursor-pointer text-orange-400 font-medium py-2">🟠 Required Attributes</summary>
+                            <div class="mt-3 flex flex-wrap gap-2 pl-4">
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">id</span>
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">title</span>
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">description</span>
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">brand</span>
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">gtin/mpn</span>
+                                <span class="bg-orange-500/10 px-3 py-1 rounded text-sm">condition</span>
+                            </div>
+                        </details>
+                        
+                        <details class="mb-4">
+                            <summary class="cursor-pointer text-yellow-400 font-medium py-2">🟡 Recommended Attributes</summary>
+                            <div class="mt-3 flex flex-wrap gap-2 pl-4">
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">google_product_category</span>
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">product_type</span>
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">color</span>
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">size</span>
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">material</span>
+                                <span class="bg-yellow-500/10 px-3 py-1 rounded text-sm">gender</span>
+                            </div>
+                        </details>
+                        
+                        <details>
+                            <summary class="cursor-pointer text-green-400 font-medium py-2">✅ Title Best Practices</summary>
+                            <div class="mt-3 grid grid-cols-2 gap-4 pl-4">
+                                <div class="space-y-1 text-sm">
+                                    <div class="text-green-400">✅ Front-load keywords (70 chars visible)</div>
+                                    <div class="text-green-400">✅ Include color, size attributes</div>
+                                    <div class="text-green-400">✅ Max 150 chars, optimal 70-100</div>
                                 </div>
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">📝</div>
-                                    <div class="font-medium text-sm">title</div>
-                                </div>
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">📄</div>
-                                    <div class="font-medium text-sm">description</div>
-                                </div>
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🏷️</div>
-                                    <div class="font-medium text-sm">brand</div>
-                                </div>
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🔢</div>
-                                    <div class="font-medium text-sm">gtin/mpn</div>
-                                </div>
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">✨</div>
-                                    <div class="font-medium text-sm">condition</div>
+                                <div class="space-y-1 text-sm">
+                                    <div class="text-red-400">❌ ALL CAPS ABUSE</div>
+                                    <div class="text-red-400">❌ Promo text: SALE, -50%</div>
+                                    <div class="text-red-400">❌ Symbols: ★ ♥ → ●</div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Recommended Attributes -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-yellow-400">🟡 Recommended Attributes</h3>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">📂</div>
-                                    <div class="font-medium text-sm">google_product_category</div>
-                                </div>
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🗂️</div>
-                                    <div class="font-medium text-sm">product_type</div>
-                                </div>
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🎨</div>
-                                    <div class="font-medium text-sm">color/size/material</div>
-                                </div>
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">👥</div>
-                                    <div class="font-medium text-sm">item_group_id</div>
-                                </div>
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">👤</div>
-                                    <div class="font-medium text-sm">gender/age_group</div>
-                                </div>
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                                    <div class="text-2xl mb-1">🚚</div>
-                                    <div class="font-medium text-sm">shipping</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Title Best Practices -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-green-400">✅ Title Best Practices</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="space-y-2">
-                                    <div class="flex items-center gap-2 text-green-400">
-                                        <span>✅</span>
-                                        <span class="text-sm">Front-load keywords (first 70 chars visible)</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-green-400">
-                                        <span>✅</span>
-                                        <span class="text-sm">Include differentiating attributes (color, size)</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-green-400">
-                                        <span>✅</span>
-                                        <span class="text-sm">Use search terms from Google Ads report</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-green-400">
-                                        <span>✅</span>
-                                        <span class="text-sm">Max 150 chars, optimal 70-100 chars</span>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex items-center gap-2 text-red-400">
-                                        <span>❌</span>
-                                        <span class="text-sm">ALL CAPS ABUSE</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-red-400">
-                                        <span>❌</span>
-                                        <span class="text-sm">Promo text: "SALE", "PROMO", "-50%"</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-red-400">
-                                        <span>❌</span>
-                                        <span class="text-sm">Keyword stuffing/repetition</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-red-400">
-                                        <span>❌</span>
-                                        <span class="text-sm">Symbols: ★ ♥ → ● etc.</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- No Invention Policy -->
-                        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
-                            <h3 class="text-lg font-semibold mb-3 text-purple-400">🛡️ No Invention Policy</h3>
-                            <p class="text-sm text-gray-300 mb-3">The AI agent NEVER invents product characteristics. All added information must be:</p>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="bg-gray-800 rounded p-3 text-center">
-                                    <div class="text-xl mb-1">📄</div>
-                                    <div class="text-sm font-medium">From Feed</div>
-                                    <p class="text-xs text-gray-500">Existing data</p>
-                                </div>
-                                <div class="bg-gray-800 rounded p-3 text-center">
-                                    <div class="text-xl mb-1">🌐</div>
-                                    <div class="text-sm font-medium">From Web</div>
-                                    <p class="text-xs text-gray-500">Verified sources</p>
-                                </div>
-                                <div class="bg-gray-800 rounded p-3 text-center">
-                                    <div class="text-xl mb-1">👁️</div>
-                                    <div class="text-sm font-medium">From Image</div>
-                                    <p class="text-xs text-gray-500">Visual observation</p>
-                                </div>
-                            </div>
-                        </div>
+                        </details>
                     </div>
                 </div><!-- End Settings Tab -->
 
@@ -1017,6 +969,13 @@
                 
                 // Navigation
                 currentTab: 'dashboard',
+                
+                // Prompts state
+                prompts: [],
+                promptEdits: {},
+                expandedPrompts: [],
+                dirtyPrompts: [],
+                savingPrompt: null,
                 
                 // Agent state
                 showLogPanel: true,
@@ -1482,6 +1441,84 @@
                     if (!sources) return [];
                     if (Array.isArray(sources)) return sources;
                     try { return JSON.parse(sources); } catch { return []; }
+                },
+
+                // ============ PROMPTS MANAGEMENT ============
+                
+                async loadPrompts() {
+                    try {
+                        const res = await fetch('/api/prompts');
+                        const data = await res.json();
+                        this.prompts = data.data || [];
+                        // Initialize edits with current content
+                        for (const p of this.prompts) {
+                            this.promptEdits[p.id] = p.content;
+                        }
+                    } catch (err) {
+                        console.error('Failed to load prompts:', err);
+                    }
+                },
+
+                togglePrompt(promptId) {
+                    if (this.expandedPrompts.includes(promptId)) {
+                        this.expandedPrompts = this.expandedPrompts.filter(id => id !== promptId);
+                    } else {
+                        this.expandedPrompts.push(promptId);
+                    }
+                },
+
+                markPromptDirty(promptId) {
+                    const original = this.prompts.find(p => p.id === promptId);
+                    if (original && this.promptEdits[promptId] !== original.content) {
+                        if (!this.dirtyPrompts.includes(promptId)) {
+                            this.dirtyPrompts.push(promptId);
+                        }
+                    } else {
+                        this.dirtyPrompts = this.dirtyPrompts.filter(id => id !== promptId);
+                    }
+                },
+
+                resetPromptEdit(prompt) {
+                    this.promptEdits[prompt.id] = prompt.content;
+                    this.dirtyPrompts = this.dirtyPrompts.filter(id => id !== prompt.id);
+                },
+
+                async savePrompt(promptId) {
+                    this.savingPrompt = promptId;
+                    try {
+                        const res = await fetch(`/api/prompts/${promptId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content: this.promptEdits[promptId] })
+                        });
+                        if (res.ok) {
+                            const updated = await res.json();
+                            // Update local state
+                            const idx = this.prompts.findIndex(p => p.id === promptId);
+                            if (idx !== -1) {
+                                this.prompts[idx] = updated;
+                            }
+                            this.dirtyPrompts = this.dirtyPrompts.filter(id => id !== promptId);
+                            this.addLog('info', `Prompt "${updated.name}" saved successfully`);
+                        } else {
+                            this.addLog('error', 'Failed to save prompt');
+                        }
+                    } catch (err) {
+                        console.error('Failed to save prompt:', err);
+                        this.addLog('error', 'Failed to save prompt');
+                    }
+                    this.savingPrompt = null;
+                },
+
+                getPromptIcon(promptId) {
+                    const icons = {
+                        'system_prompt': '🤖',
+                        'analyze_product': '🔍',
+                        'analyze_image': '👁️',
+                        'optimize_title': '📝',
+                        'optimize_description': '📄'
+                    };
+                    return icons[promptId] || '📋';
                 }
             }
         }

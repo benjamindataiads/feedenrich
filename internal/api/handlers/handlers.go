@@ -662,3 +662,42 @@ func (h *Handlers) DeleteRule(c echo.Context) error {
 
 	return c.NoContent(http.StatusNoContent)
 }
+
+// ListPrompts returns all editable prompts
+func (h *Handlers) ListPrompts(c echo.Context) error {
+	prompts, err := h.queries.ListPrompts(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list prompts")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"data": prompts})
+}
+
+// GetPrompt returns a single prompt by ID
+func (h *Handlers) GetPrompt(c echo.Context) error {
+	id := c.Param("id")
+	prompt, err := h.queries.GetPrompt(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Prompt not found")
+	}
+	return c.JSON(http.StatusOK, prompt)
+}
+
+// UpdatePrompt updates a prompt's content
+func (h *Handlers) UpdatePrompt(c echo.Context) error {
+	id := c.Param("id")
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+
+	if err := h.queries.UpdatePrompt(c.Request().Context(), id, req.Content); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update prompt")
+	}
+
+	// Return updated prompt
+	prompt, _ := h.queries.GetPrompt(c.Request().Context(), id)
+	return c.JSON(http.StatusOK, prompt)
+}

@@ -134,6 +134,18 @@ type ProductData struct {
 	Extra       map[string]string `json:"extra,omitempty"` // additional fields
 }
 
+// Prompt represents an editable agent prompt
+type Prompt struct {
+	ID          string    `json:"id" db:"id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Content     string    `json:"content" db:"content"`
+	Category    string    `json:"category" db:"category"` // agent, tool
+	IsDefault   bool      `json:"is_default" db:"is_default"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
 // AnalysisResult from analyze_product tool
 type AnalysisResult struct {
 	CurrentData   ProductData `json:"current_data"`
