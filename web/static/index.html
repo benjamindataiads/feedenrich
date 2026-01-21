@@ -29,19 +29,39 @@
         <div class="flex-1 flex flex-col overflow-hidden" :class="showLogPanel ? 'mr-96' : ''">
             
             <!-- Header -->
-            <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                        🚀 FeedEnrich
-                    </h1>
-                    <span class="text-sm text-gray-400">AI-Powered Product Enrichment</span>
+            <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                            🚀 FeedEnrich
+                        </h1>
+                        <span class="text-sm text-gray-400">AI-Powered Product Enrichment</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button @click="showLogPanel = !showLogPanel" 
+                                class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                                :class="showLogPanel ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">
+                            <span x-show="!showLogPanel">📊 Show Agent Logs</span>
+                            <span x-show="showLogPanel">📊 Hide Logs</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button @click="showLogPanel = !showLogPanel" 
-                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                            :class="showLogPanel ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">
-                        <span x-show="!showLogPanel">📊 Show Agent Logs</span>
-                        <span x-show="showLogPanel">📊 Hide Logs</span>
+                <!-- Navigation Tabs -->
+                <div class="flex gap-1 mt-4">
+                    <button @click="currentTab = 'dashboard'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        📊 Dashboard
+                    </button>
+                    <button @click="currentTab = 'settings'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'settings' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        ⚙️ Agent Settings
+                    </button>
+                    <button @click="currentTab = 'docs'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'docs' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        📖 Documentation
                     </button>
                 </div>
             </header>
@@ -49,8 +69,11 @@
             <!-- Main Content Area -->
             <main class="flex-1 overflow-y-auto p-6 space-y-6">
                 
+                <!-- ============ DASHBOARD TAB ============ -->
+                <div x-show="currentTab === 'dashboard'">
+                
                 <!-- Upload Section -->
-                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 mb-6">
                     <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
                         <span>📁</span> Import Dataset
                     </h2>
@@ -377,6 +400,387 @@
                         </p>
                     </div>
                 </div>
+                
+                </div><!-- End Dashboard Tab -->
+
+                <!-- ============ SETTINGS TAB ============ -->
+                <div x-show="currentTab === 'settings'" class="space-y-6">
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">⚙️ Agent Settings</h2>
+                        <p class="text-gray-400 mb-6">Configure how the AI agent analyzes and optimizes your product data.</p>
+                        
+                        <!-- Title Templates by Category -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-blue-400">📝 Title Templates by Category</h3>
+                            <div class="space-y-3">
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-medium">👕 Apparel</span>
+                                        <span class="text-xs text-gray-400">Fashion, Clothing</span>
+                                    </div>
+                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
+                                        {brand} + {gender} + {type} + {color} + {size} + {material}
+                                    </code>
+                                    <p class="text-xs text-gray-500 mt-2">Example: Nike Men's Air Max 90 Black Size 42 Leather</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-medium">📱 Electronics</span>
+                                        <span class="text-xs text-gray-400">Tech, Gadgets</span>
+                                    </div>
+                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
+                                        {brand} + {line} + {model} + {key_spec} + {capacity}
+                                    </code>
+                                    <p class="text-xs text-gray-500 mt-2">Example: Samsung Galaxy S24 Ultra 5G 256GB Titanium</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-medium">🏠 Home & Garden</span>
+                                        <span class="text-xs text-gray-400">Furniture, Decor</span>
+                                    </div>
+                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
+                                        {brand} + {type} + {material} + {dimensions} + {style}
+                                    </code>
+                                    <p class="text-xs text-gray-500 mt-2">Example: IKEA KALLAX Shelf Wood White 77x147cm Modern</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-medium">💄 Beauty</span>
+                                        <span class="text-xs text-gray-400">Cosmetics, Skincare</span>
+                                    </div>
+                                    <code class="text-sm text-green-400 bg-gray-900 px-3 py-2 rounded block">
+                                        {brand} + {line} + {type} + {variant} + {size}
+                                    </code>
+                                    <p class="text-xs text-gray-500 mt-2">Example: L'Oréal Revitalift Night Cream Anti-Wrinkle 50ml</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Validation Rules -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-red-400">🔴 Critical Validation Rules</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">🚫 Policy Violations</div>
+                                    <p class="text-sm text-gray-400">Prohibited products, false claims</p>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">💰 Price Mismatch</div>
+                                    <p class="text-sm text-gray-400">price, sale_price sync</p>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">📦 Availability</div>
+                                    <p class="text-sm text-gray-400">Stock sync issues</p>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">🔗 Invalid URLs</div>
+                                    <p class="text-sm text-gray-400">link, image_link validation</p>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">🏷️ Invalid GTIN</div>
+                                    <p class="text-sm text-gray-400">GTIN format check</p>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-medium text-red-400 mb-2">🖼️ Image Policy</div>
+                                    <p class="text-sm text-gray-400">Watermarks, text overlays</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Required Attributes -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-orange-400">🟠 Required Attributes</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🆔</div>
+                                    <div class="font-medium text-sm">id</div>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">📝</div>
+                                    <div class="font-medium text-sm">title</div>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">📄</div>
+                                    <div class="font-medium text-sm">description</div>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🏷️</div>
+                                    <div class="font-medium text-sm">brand</div>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🔢</div>
+                                    <div class="font-medium text-sm">gtin/mpn</div>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">✨</div>
+                                    <div class="font-medium text-sm">condition</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recommended Attributes -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-yellow-400">🟡 Recommended Attributes</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">📂</div>
+                                    <div class="font-medium text-sm">google_product_category</div>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🗂️</div>
+                                    <div class="font-medium text-sm">product_type</div>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🎨</div>
+                                    <div class="font-medium text-sm">color/size/material</div>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">👥</div>
+                                    <div class="font-medium text-sm">item_group_id</div>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">👤</div>
+                                    <div class="font-medium text-sm">gender/age_group</div>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+                                    <div class="text-2xl mb-1">🚚</div>
+                                    <div class="font-medium text-sm">shipping</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Title Best Practices -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-green-400">✅ Title Best Practices</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2 text-green-400">
+                                        <span>✅</span>
+                                        <span class="text-sm">Front-load keywords (first 70 chars visible)</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-green-400">
+                                        <span>✅</span>
+                                        <span class="text-sm">Include differentiating attributes (color, size)</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-green-400">
+                                        <span>✅</span>
+                                        <span class="text-sm">Use search terms from Google Ads report</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-green-400">
+                                        <span>✅</span>
+                                        <span class="text-sm">Max 150 chars, optimal 70-100 chars</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2 text-red-400">
+                                        <span>❌</span>
+                                        <span class="text-sm">ALL CAPS ABUSE</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-red-400">
+                                        <span>❌</span>
+                                        <span class="text-sm">Promo text: "SALE", "PROMO", "-50%"</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-red-400">
+                                        <span>❌</span>
+                                        <span class="text-sm">Keyword stuffing/repetition</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-red-400">
+                                        <span>❌</span>
+                                        <span class="text-sm">Symbols: ★ ♥ → ● etc.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Invention Policy -->
+                        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-3 text-purple-400">🛡️ No Invention Policy</h3>
+                            <p class="text-sm text-gray-300 mb-3">The AI agent NEVER invents product characteristics. All added information must be:</p>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-gray-800 rounded p-3 text-center">
+                                    <div class="text-xl mb-1">📄</div>
+                                    <div class="text-sm font-medium">From Feed</div>
+                                    <p class="text-xs text-gray-500">Existing data</p>
+                                </div>
+                                <div class="bg-gray-800 rounded p-3 text-center">
+                                    <div class="text-xl mb-1">🌐</div>
+                                    <div class="text-sm font-medium">From Web</div>
+                                    <p class="text-xs text-gray-500">Verified sources</p>
+                                </div>
+                                <div class="bg-gray-800 rounded p-3 text-center">
+                                    <div class="text-xl mb-1">👁️</div>
+                                    <div class="text-sm font-medium">From Image</div>
+                                    <p class="text-xs text-gray-500">Visual observation</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- End Settings Tab -->
+
+                <!-- ============ DOCUMENTATION TAB ============ -->
+                <div x-show="currentTab === 'docs'" class="space-y-6">
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">📖 Documentation</h2>
+                        
+                        <!-- How it Works -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-blue-400">🔄 How FeedEnrich Works</h3>
+                            <div class="bg-gray-700/30 rounded-lg p-4">
+                                <div class="flex items-center justify-between gap-4 text-center mb-4">
+                                    <div class="flex-1 bg-blue-500/20 rounded-lg p-3">
+                                        <div class="text-2xl mb-1">📥</div>
+                                        <div class="font-medium text-sm">1. Import</div>
+                                        <p class="text-xs text-gray-400">Upload TSV/CSV</p>
+                                    </div>
+                                    <div class="text-gray-500">→</div>
+                                    <div class="flex-1 bg-yellow-500/20 rounded-lg p-3">
+                                        <div class="text-2xl mb-1">🔍</div>
+                                        <div class="font-medium text-sm">2. Analyze</div>
+                                        <p class="text-xs text-gray-400">AI evaluates quality</p>
+                                    </div>
+                                    <div class="text-gray-500">→</div>
+                                    <div class="flex-1 bg-green-500/20 rounded-lg p-3">
+                                        <div class="text-2xl mb-1">✨</div>
+                                        <div class="font-medium text-sm">3. Optimize</div>
+                                        <p class="text-xs text-gray-400">Generate proposals</p>
+                                    </div>
+                                    <div class="text-gray-500">→</div>
+                                    <div class="flex-1 bg-purple-500/20 rounded-lg p-3">
+                                        <div class="text-2xl mb-1">✅</div>
+                                        <div class="font-medium text-sm">4. Review</div>
+                                        <p class="text-xs text-gray-400">Accept/Reject</p>
+                                    </div>
+                                    <div class="text-gray-500">→</div>
+                                    <div class="flex-1 bg-pink-500/20 rounded-lg p-3">
+                                        <div class="text-2xl mb-1">📤</div>
+                                        <div class="font-medium text-sm">5. Export</div>
+                                        <p class="text-xs text-gray-400">Optimized feed</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agentic Architecture -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-purple-400">🤖 Agentic Architecture</h3>
+                            <p class="text-gray-400 mb-4">FeedEnrich uses a central AI agent that dynamically chooses tools based on product context:</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">🔍 analyze_product</div>
+                                    <p class="text-sm text-gray-400">Evaluates data quality, GMC compliance, and agent-readiness score</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">🌐 web_search</div>
+                                    <p class="text-sm text-gray-400">Searches for verified product specs, materials, dimensions</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">👁️ analyze_image</div>
+                                    <p class="text-sm text-gray-400">Extracts visual attributes: color, style, material appearance</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">✏️ optimize_field</div>
+                                    <p class="text-sm text-gray-400">Generates improved titles and descriptions using templates</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">➕ add_attribute</div>
+                                    <p class="text-sm text-gray-400">Adds missing attributes with mandatory source citation</p>
+                                </div>
+                                <div class="bg-gray-700/50 rounded-lg p-4">
+                                    <div class="font-medium text-blue-400 mb-2">✅ validate_proposal</div>
+                                    <p class="text-sm text-gray-400">Checks proposals against no-invention and GMC rules</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Optimization Flow -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-green-400">📋 GMC Optimization Flow</h3>
+                            <p class="text-gray-400 mb-4">Based on Google Merchant Center best practices:</p>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center font-bold">1</div>
+                                    <div class="flex-1 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                                        <div class="font-medium">🔴 Critical Errors</div>
+                                        <p class="text-sm text-gray-400">Fix disapprovals, policy violations, price mismatches</p>
+                                    </div>
+                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center font-bold">2</div>
+                                    <div class="flex-1 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                                        <div class="font-medium">🟠 Required Attributes</div>
+                                        <p class="text-sm text-gray-400">Complete id, title, description, brand, GTIN</p>
+                                    </div>
+                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center font-bold">3</div>
+                                    <div class="flex-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                                        <div class="font-medium">🟡 Recommended Attributes</div>
+                                        <p class="text-sm text-gray-400">Add category, product_type, color, size, material</p>
+                                    </div>
+                                    <span class="text-green-400 text-sm">100% SAFE</span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center font-bold">4</div>
+                                    <div class="flex-1 bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                                        <div class="font-medium">🟢 Title & Description</div>
+                                        <p class="text-sm text-gray-400">Optimize using category-specific templates</p>
+                                    </div>
+                                    <span class="text-yellow-400 text-sm">A/B TEST</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confidence & Risk -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-yellow-400">⚖️ Confidence & Risk Levels</h3>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                                    <div class="font-bold text-green-400 mb-2">Low Risk</div>
+                                    <ul class="text-sm text-gray-400 space-y-1">
+                                        <li>• Formatting fixes</li>
+                                        <li>• Case corrections</li>
+                                        <li>• Missing attributes from feed</li>
+                                        <li>• Color from image (obvious)</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                                    <div class="font-bold text-yellow-400 mb-2">Medium Risk</div>
+                                    <ul class="text-sm text-gray-400 space-y-1">
+                                        <li>• Title restructuring</li>
+                                        <li>• Description rewriting</li>
+                                        <li>• Attributes from web search</li>
+                                        <li>• Material from image</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <div class="font-bold text-red-400 mb-2">High Risk</div>
+                                    <ul class="text-sm text-gray-400 space-y-1">
+                                        <li>• Technical specifications</li>
+                                        <li>• Compatibility claims</li>
+                                        <li>• Health/safety claims</li>
+                                        <li>• Requires human review</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Start -->
+                        <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-3 text-blue-400">🚀 Quick Start</h3>
+                            <ol class="space-y-2 text-sm text-gray-300">
+                                <li><strong>1.</strong> Upload your Google Merchant Center feed (TSV/CSV)</li>
+                                <li><strong>2.</strong> Click "Enrich All" to analyze all products</li>
+                                <li><strong>3.</strong> Review proposals in the Proposals section</li>
+                                <li><strong>4.</strong> Use filters to bulk-accept low-risk improvements</li>
+                                <li><strong>5.</strong> Manually review medium/high risk proposals</li>
+                                <li><strong>6.</strong> Export your optimized feed</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div><!-- End Docs Tab -->
+                
             </main>
         </div>
 
@@ -610,6 +1014,9 @@
                     riskLevel: '',
                     status: ''
                 },
+                
+                // Navigation
+                currentTab: 'dashboard',
                 
                 // Agent state
                 showLogPanel: true,

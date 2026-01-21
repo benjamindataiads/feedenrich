@@ -227,30 +227,68 @@ func (a *Agent) executeStep(ctx context.Context, session *Session, stepNum int) 
 }
 
 func (a *Agent) buildMessages(session *Session) []openai.ChatCompletionMessage {
-	// System prompt
-	systemPrompt := fmt.Sprintf(`Tu es un agent d'enrichissement de données produit. 
+	// System prompt based on Dataïads GMC Feed Optimization Methodology
+	systemPrompt := fmt.Sprintf(`Tu es un agent d'enrichissement de données produit pour Google Merchant Center.
 
 OBJECTIF: %s
 
-CONTRAINTES ABSOLUES:
+=== MÉTHODOLOGIE D'OPTIMISATION FEED (Dataïads) ===
+
+FLUX DE PRIORITÉ:
+1. 🔴 ERREURS CRITIQUES (100%% SAFE - Fix immédiat)
+   - Policy violations, price mismatch, availability mismatch
+   - Invalid URLs, Invalid GTIN, Image policy
+   
+2. 🟠 ATTRIBUTS OBLIGATOIRES (100%% SAFE)
+   - id, title, description, brand, gtin/mpn, condition
+   
+3. 🟡 ATTRIBUTS RECOMMANDÉS (100%% SAFE)
+   - google_product_category, product_type, color/size/material
+   - item_group_id, gender/age_group, shipping
+   
+4. 🟢 OPTIMISATION TITRES (A/B TEST requis)
+   Templates par catégorie:
+   - Apparel: {brand} + {gender} + {type} + {color} + {size} + {material}
+   - Electronics: {brand} + {line} + {model} + {key_spec} + {capacity}
+   - Home & Garden: {brand} + {type} + {material} + {dimensions} + {style}
+   - Beauty: {brand} + {line} + {type} + {variant} + {size}
+   
+   Best practices:
+   ✅ Front-load keywords (70 premiers chars visibles)
+   ✅ Max 150 chars, optimal 70-100 chars
+   ❌ PAS de MAJUSCULES abusives
+   ❌ PAS de texte promo (SOLDES, -50%%, etc.)
+   ❌ PAS de symboles ★ ♥ →
+
+5. 🔵 OPTIMISATION DESCRIPTIONS
+   Structure: Accroche → Features → Specs → Use cases
+   ✅ Min 500 chars, contenu unique
+   ❌ PAS de HTML, prix, liens externes
+
+=== CONTRAINTES "NO INVENTION" ===
 1. Tu ne dois JAMAIS inventer une caractéristique produit non sourcée
-2. Chaque fait ajouté DOIT avoir une source (feed, web, ou vision)
-3. Si tu n'es pas sûr → utilise request_human_review
-4. Toujours validate_proposal avant commit_changes
-5. Pour les attributs techniques (matière, dimensions, poids) → source web obligatoire
-6. Pour les attributs visuels (couleur, style) → vision acceptable si confidence > 0.85
+2. Chaque fait ajouté DOIT avoir une source:
+   - "feed": données existantes du fichier
+   - "web": source vérifiée (URL citée)
+   - "vision": observation image (confidence > 0.85)
+3. Si incertain → request_human_review
+4. Toujours validate_proposal avant commit
 
-PROCESSUS:
-1. D'abord, utilise analyze_product pour comprendre l'état actuel
-2. Identifie les problèmes et opportunités
-3. Cherche des informations avec web_search et fetch_page
-4. Utilise analyze_image pour confirmer visuellement
-5. Optimise les champs avec optimize_field
-6. Ajoute les attributs manquants avec add_attribute
-7. Valide avec validate_proposal
-8. Commit avec commit_changes
+=== NIVEAUX DE RISQUE ===
+- LOW: Corrections format, case, attributs du feed, couleur image évidente
+- MEDIUM: Restructuration titre, réécriture description, web sources
+- HIGH: Specs techniques, claims compatibilité, santé/sécurité → HUMAN REVIEW
 
-Sois méthodique et cite toujours tes sources.`, session.Goal)
+=== PROCESSUS ===
+1. analyze_product → évaluer qualité et conformité GMC
+2. web_search/fetch_page → sourcer informations manquantes
+3. analyze_image → confirmer visuellement (couleur, style, matériau)
+4. optimize_field → titres/descriptions avec templates
+5. add_attribute → ajouter attributs avec sources
+6. validate_proposal → vérifier no-invention
+7. commit_changes → finaliser
+
+Sois méthodique, cite toujours tes sources, respecte la hiérarchie des priorités.`, session.Goal)
 
 	messages := []openai.ChatCompletionMessage{
 		{

@@ -87,13 +87,53 @@ func (t *OptimizeFieldTool) Execute(ctx context.Context, input json.RawMessage, 
 	contextJSON, _ := json.MarshalIndent(params.Context, "", "  ")
 	constraintsJSON, _ := json.MarshalIndent(params.Constraints, "", "  ")
 
-	prompt := fmt.Sprintf(`Optimise ce champ produit en respectant STRICTEMENT les règles suivantes:
+	var fieldSpecificRules string
+	if params.Field == "title" {
+		fieldSpecificRules = `
+TEMPLATES DE TITRES PAR CATÉGORIE (GMC Best Practices):
+- Apparel/Fashion: {brand} + {gender} + {type} + {color} + {size} + {material}
+  Exemple: "Nike Men's Air Max 90 Black Size 42 Leather"
+- Electronics: {brand} + {line} + {model} + {key_spec} + {capacity}
+  Exemple: "Samsung Galaxy S24 Ultra 5G 256GB Titanium"
+- Home & Garden: {brand} + {type} + {material} + {dimensions} + {style}
+  Exemple: "IKEA KALLAX Shelf Wood White 77x147cm Modern"
+- Beauty: {brand} + {line} + {type} + {variant} + {size}
+  Exemple: "L'Oréal Revitalift Night Cream Anti-Wrinkle 50ml"
 
-RÈGLES CRITIQUES:
+RÈGLES TITRE:
+✅ Front-load keywords (70 premiers caractères visibles dans Google Shopping)
+✅ Inclure attributs différenciants (couleur, taille, matériau)
+✅ Max 150 caractères, optimal 70-100 caractères
+❌ PAS de MAJUSCULES ABUSIVES
+❌ PAS de texte promo: "SOLDES", "PROMO", "-50%", "LIVRAISON GRATUITE"
+❌ PAS de keyword stuffing (répétition)
+❌ PAS de symboles: ★ ♥ → ● etc.`
+	} else if params.Field == "description" {
+		fieldSpecificRules = `
+STRUCTURE DESCRIPTION OPTIMALE:
+1. Accroche - Bénéfice principal (1-2 phrases)
+2. Features - Caractéristiques clés (bullet points mentaux)
+3. Specs - Dimensions, matériaux, compatibilité
+4. Use cases - Contextes d'utilisation, occasions
+
+RÈGLES DESCRIPTION:
+✅ Contenu unique (pas de duplicate)
+✅ Keywords naturellement intégrés
+✅ Informations utiles pour l'acheteur
+✅ Minimum 500 caractères recommandé
+❌ PAS de HTML tags
+❌ PAS d'infos prix/promo/shipping
+❌ PAS de liens ou références à d'autres sites`
+	}
+
+	prompt := fmt.Sprintf(`Optimise ce champ produit pour Google Merchant Center en respectant STRICTEMENT les règles suivantes:
+
+RÈGLES CRITIQUES "NO INVENTION":
 1. N'ajoute AUCUNE information qui n'est pas dans le contexte ou les gathered_facts
 2. Chaque fait ajouté doit être traçable à une source
-3. Pas de superlatifs non prouvés ("meilleur", "unique", etc.)
+3. Pas de superlatifs non prouvés ("meilleur", "unique", "premium" sans preuve)
 4. Pas d'invention de caractéristiques
+%s
 
 Champ: %s
 Valeur actuelle: %s
@@ -112,7 +152,7 @@ Retourne un JSON avec:
   "confidence": 0.X
 }
 
-Retourne UNIQUEMENT le JSON.`, params.Field, params.CurrentValue, string(contextJSON), string(constraintsJSON))
+Retourne UNIQUEMENT le JSON.`, fieldSpecificRules, params.Field, params.CurrentValue, string(contextJSON), string(constraintsJSON))
 
 	resp, err := t.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: t.config.OpenAI.Model,
