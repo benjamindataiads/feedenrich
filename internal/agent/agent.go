@@ -380,9 +380,15 @@ When multiple sources provide data for the same field, use this priority:
    - If feed has color="N/A" or empty but image shows "blue" → use "blue"
    - If feed has color="rouge" and image shows "red" → use "red" (standardize)
 
-3. FEED DATA (for text content):
-   - Trust feed for: title, description (but optimize them)
-   - Enhance titles with image-detected attributes
+3. FEED + IMAGE (combined for text content):
+   - TITLE: Start with feed title, ENRICH with image attributes (color, material, style)
+     Example: "T-shirt" → "T-shirt bleu en coton à rayures" (if image shows blue cotton stripes)
+   - DESCRIPTION: Start with feed description, ADD image observations:
+     * Add color details seen in image
+     * Add material if visible
+     * Add style/design elements
+     * Add any visible features (logos, buttons, patterns)
+     Example: "Robe élégante" → "Robe élégante rouge en soie avec motif floral. Col V et manches longues."
 
 4. INFERENCE (lowest priority):
    - Use for: age_group (default "adult"), condition (default "new"), size_system
@@ -394,6 +400,17 @@ When multiple sources provide data for the same field, use this priority:
 - Feed says "gender: unisex", Image clearly shows women's dress → Use "female"
 - Feed has value, Image has null → Keep feed value
 - Feed empty, Image has value → Use image value
+
+=== TITLE & DESCRIPTION ENRICHMENT ===
+ALWAYS combine feed + image for title and description:
+- Title template: [Brand] + [Product Type] + [Color] + [Material] + [Key Feature]
+  Feed: "Robe Zara" + Image: {color:"rouge", material:"soie", pattern:"floral"}
+  → "Robe Zara rouge en soie motif floral"
+  
+- Description: Keep feed text + append image observations
+  Feed: "Belle robe pour soirée"
+  Image: {color:"rouge", material:"soie", style:"élégant", observations:["col V","manches longues"]}
+  → "Belle robe pour soirée. Couleur rouge vif en soie légère. Coupe élégante avec col V et manches longues."
 
 === CRITICAL RULES ===
 - NO INVENTION: Only use facts from feed data or image analysis
