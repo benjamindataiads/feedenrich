@@ -225,7 +225,14 @@ IMPORTANT: Only state what you can CLEARLY see. Use null for uncertain attribute
 		}
 	}
 	
-	_ = imageAnalysisStatus // Used for debugging/metrics
+	// Log source aggregation
+	if a.callbacks.OnLog != nil {
+		sources := []string{"📄 Feed data"}
+		if imageAnalysisStatus == "success" {
+			sources = append(sources, "👁️ Image analysis")
+		}
+		a.callbacks.OnLog(fmt.Sprintf("🔄 Aggregating sources: %s", strings.Join(sources, " + ")))
+	}
 
 	// Main optimization call
 	systemPrompt := `You are a GMC (Google Merchant Center) product data optimizer. Analyze and generate optimization proposals.
@@ -361,13 +368,41 @@ OPTIONAL BUT VALUABLE:
    - medium: Material inference, category mapping
    - high: Technical specs, safety claims, compatibility → flag for human review
 
+=== SOURCE RECONCILIATION RULES ===
+When multiple sources provide data for the same field, use this priority:
+
+1. FEED DATA (highest priority for identifiers):
+   - ALWAYS trust feed for: id, gtin, mpn, brand, price, link, sku
+   - These are business-critical and should never be overwritten
+
+2. IMAGE ANALYSIS (highest priority for visual attributes):
+   - Trust image for: color, pattern, material, style, product_type
+   - If feed has color="N/A" or empty but image shows "blue" → use "blue"
+   - If feed has color="rouge" and image shows "red" → use "red" (standardize)
+
+3. FEED DATA (for text content):
+   - Trust feed for: title, description (but optimize them)
+   - Enhance titles with image-detected attributes
+
+4. INFERENCE (lowest priority):
+   - Use for: age_group (default "adult"), condition (default "new"), size_system
+   - Only when no explicit data from feed or image
+
+=== CONFLICT RESOLUTION ===
+- Feed says "color: bleu", Image says "color: navy blue" → Use "navy blue" (more specific)
+- Feed says "material: fabric", Image says "material: cotton" → Use "cotton" (more specific)
+- Feed says "gender: unisex", Image clearly shows women's dress → Use "female"
+- Feed has value, Image has null → Keep feed value
+- Feed empty, Image has value → Use image value
+
 === CRITICAL RULES ===
 - NO INVENTION: Only use facts from feed data or image analysis
 - Be GENEROUS: Propose improvements that could be rejected rather than miss opportunities
 - Generate AT LEAST 3-5 proposals for any product with room for improvement
 - ALWAYS fill these if empty: condition (→"new"), age_group (→"adult"), size_system (→infer from currency)
 - For APPAREL: ALWAYS check AND PROPOSE: color, gender, age_group, size, size_system, condition
-- DO NOT skip fields just because they seem "optional" - GMC rewards completeness`
+- DO NOT skip fields just because they seem "optional" - GMC rewards completeness
+- ALWAYS specify the source in your proposal: "feed", "image", or "inferred"`
 
 	userPrompt := fmt.Sprintf("Product Data:\n%s%s\n\nGenerate optimization proposals.", string(product.RawData), imageContext)
 
