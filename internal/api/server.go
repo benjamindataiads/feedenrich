@@ -65,6 +65,13 @@ func (s *Server) setupRoutes() {
 	api.GET("/datasets/:id/export", h.ExportDataset)
 	api.GET("/datasets/:id/stats", h.GetDatasetStats)
 
+	// Data Feeds - Versions, Snapshots, Change Log
+	api.GET("/datasets/:id/versions", h.ListDatasetVersions)
+	api.POST("/datasets/:id/snapshots", h.CreateSnapshot)
+	api.GET("/datasets/:id/snapshots", h.ListSnapshots)
+	api.DELETE("/snapshots/:id", h.DeleteSnapshot)
+	api.GET("/datasets/:id/changelog", h.GetChangeLog)
+
 	// Products
 	api.GET("/datasets/:id/products", h.ListProducts)
 	api.GET("/products/:id", h.GetProduct)
@@ -75,14 +82,31 @@ func (s *Server) setupRoutes() {
 	api.GET("/agent/sessions/:id", h.GetAgentSession)
 	api.GET("/agent/sessions/:id/trace", h.GetAgentTrace)
 
+	// Feed Audit
+	api.GET("/audit/groups", h.GetAuditGroups)
+	api.POST("/datasets/:id/audit", h.AuditDataset)
+
+	// Jobs (Execution tracking)
+	api.GET("/jobs", h.ListJobs)
+	api.GET("/jobs/:id", h.GetJobDetails)
+
 	// Proposals
 	api.GET("/proposals", h.ListProposals)
 	api.GET("/proposals/with-products", h.ListProposalsWithProducts)
+	api.GET("/proposals/by-module", h.GetProposalsByModule)
+	api.GET("/proposals/module", h.ListProposalsByModuleFiltered)
 	api.GET("/proposals/:id", h.GetProposal)
 	api.PATCH("/proposals/:id", h.UpdateProposal)
 	api.POST("/proposals/bulk", h.BulkUpdateProposals)
+	api.POST("/proposals/apply-rules", h.ApplyApprovalRules)
 
-	// Rules
+	// Approval Rules
+	api.GET("/approval-rules", h.ListApprovalRules)
+	api.POST("/approval-rules", h.CreateApprovalRule)
+	api.PATCH("/approval-rules/:id", h.UpdateApprovalRule)
+	api.DELETE("/approval-rules/:id", h.DeleteApprovalRule)
+
+	// Rules (validation rules - legacy)
 	api.GET("/rules", h.ListRules)
 	api.POST("/rules", h.CreateRule)
 	api.PATCH("/rules/:id", h.UpdateRule)

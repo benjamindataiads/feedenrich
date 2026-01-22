@@ -2,11 +2,13 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/benjamincozon/feedenrich/internal/agent"
 	"github.com/benjamincozon/feedenrich/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -338,6 +340,15 @@ func (q *Queries) UpdateProposalStatus(ctx context.Context, id uuid.UUID, status
 	return err
 }
 
+func (q *Queries) CreateProposal(ctx context.Context, p models.Proposal) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO proposals (id, product_id, field, before_value, after_value, rationale, sources, confidence, risk_level, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (id) DO NOTHING
+	`, p.ID, p.ProductID, p.Field, p.BeforeValue, p.AfterValue, p.Rationale, p.Sources, p.Confidence, p.RiskLevel, p.Status, p.CreatedAt)
+	return err
+}
+
 // Job operations
 
 func (q *Queries) CreateJob(ctx context.Context, j models.Job) error {
@@ -533,4 +544,388 @@ func (q *Queries) GetTokenUsageStats(ctx context.Context, days int) (*models.Tok
 	}
 
 	return stats, nil
+}
+
+// ===== DATA FEEDS OPERATIONS =====
+
+// Dataset Version operations
+
+func (q *Queries) CreateDatasetVersion(ctx context.Context, v models.DatasetVersion) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO dataset_versions (id, dataset_id, version_number, file_name, row_count, created_at, created_by, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, v.ID, v.DatasetID, v.VersionNumber, v.FileName, v.RowCount, v.CreatedAt, v.CreatedBy, v.Notes)
+	return err
+}
+
+func (q *Queries) ListDatasetVersions(ctx context.Context, datasetID uuid.UUID) ([]models.DatasetVersion, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT id, dataset_id, version_number, file_name, row_count, created_at, created_by, COALESCE(notes, '')
+		FROM dataset_versions WHERE dataset_id = $1 ORDER BY version_number DESC
+	`, datasetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []models.DatasetVersion
+	for rows.Next() {
+		var v models.DatasetVersion
+		if err := rows.Scan(&v.ID, &v.DatasetID, &v.VersionNumber, &v.FileName, &v.RowCount, &v.CreatedAt, &v.CreatedBy, &v.Notes); err != nil {
+			return nil, err
+		}
+		versions = append(versions, v)
+	}
+	return versions, nil
+}
+
+func (q *Queries) GetNextVersionNumber(ctx context.Context, datasetID uuid.UUID) (int, error) {
+	var maxVersion int
+	err := q.pool.QueryRow(ctx, `
+		SELECT COALESCE(MAX(version_number), 0) FROM dataset_versions WHERE dataset_id = $1
+	`, datasetID).Scan(&maxVersion)
+	return maxVersion + 1, err
+}
+
+// Snapshot operations
+
+func (q *Queries) CreateSnapshot(ctx context.Context, s models.DatasetSnapshot) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO dataset_snapshots (id, dataset_id, name, snapshot_type, product_count, created_at, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, s.ID, s.DatasetID, s.Name, s.SnapshotType, s.ProductCount, s.CreatedAt, s.CreatedBy)
+	return err
+}
+
+func (q *Queries) CreateSnapshotProducts(ctx context.Context, snapshotID uuid.UUID, products []models.Product) error {
+	for _, p := range products {
+		_, err := q.pool.Exec(ctx, `
+			INSERT INTO snapshot_products (snapshot_id, product_id, raw_data, current_data)
+			VALUES ($1, $2, $3, $4)
+		`, snapshotID, p.ID, p.RawData, p.CurrentData)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (q *Queries) ListSnapshots(ctx context.Context, datasetID uuid.UUID) ([]models.DatasetSnapshot, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT id, dataset_id, name, snapshot_type, product_count, created_at, COALESCE(created_by, '')
+		FROM dataset_snapshots WHERE dataset_id = $1 ORDER BY created_at DESC
+	`, datasetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var snapshots []models.DatasetSnapshot
+	for rows.Next() {
+		var s models.DatasetSnapshot
+		if err := rows.Scan(&s.ID, &s.DatasetID, &s.Name, &s.SnapshotType, &s.ProductCount, &s.CreatedAt, &s.CreatedBy); err != nil {
+			return nil, err
+		}
+		snapshots = append(snapshots, s)
+	}
+	return snapshots, nil
+}
+
+func (q *Queries) GetSnapshotProducts(ctx context.Context, snapshotID uuid.UUID) ([]models.SnapshotProduct, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT id, snapshot_id, product_id, raw_data, current_data
+		FROM snapshot_products WHERE snapshot_id = $1
+	`, snapshotID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []models.SnapshotProduct
+	for rows.Next() {
+		var p models.SnapshotProduct
+		if err := rows.Scan(&p.ID, &p.SnapshotID, &p.ProductID, &p.RawData, &p.CurrentData); err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+	return products, nil
+}
+
+func (q *Queries) DeleteSnapshot(ctx context.Context, id uuid.UUID) error {
+	_, err := q.pool.Exec(ctx, `DELETE FROM dataset_snapshots WHERE id = $1`, id)
+	return err
+}
+
+// Change Log operations
+
+func (q *Queries) LogChange(ctx context.Context, entry models.ChangeLogEntry) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO change_log (id, dataset_id, product_id, action, field, old_value, new_value, source, module, created_at, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, entry.ID, entry.DatasetID, entry.ProductID, entry.Action, entry.Field, entry.OldValue, entry.NewValue, entry.Source, entry.Module, entry.CreatedAt, entry.CreatedBy)
+	return err
+}
+
+func (q *Queries) GetChangeLog(ctx context.Context, datasetID uuid.UUID, limit int) ([]models.ChangeLogEntry, error) {
+	rows, err := q.pool.Query(ctx, `
+		SELECT id, dataset_id, product_id, action, COALESCE(field, ''), COALESCE(old_value, ''), COALESCE(new_value, ''), COALESCE(source, ''), COALESCE(module, ''), created_at, COALESCE(created_by, '')
+		FROM change_log WHERE dataset_id = $1 ORDER BY created_at DESC LIMIT $2
+	`, datasetID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.ChangeLogEntry
+	for rows.Next() {
+		var e models.ChangeLogEntry
+		if err := rows.Scan(&e.ID, &e.DatasetID, &e.ProductID, &e.Action, &e.Field, &e.OldValue, &e.NewValue, &e.Source, &e.Module, &e.CreatedAt, &e.CreatedBy); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// Approval Rules operations
+
+func (q *Queries) CreateApprovalRule(ctx context.Context, r models.ApprovalRule) error {
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO approval_rules (id, dataset_id, name, field, module, min_confidence, max_risk, action, priority, active, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, r.ID, r.DatasetID, r.Name, r.Field, r.Module, r.MinConfidence, r.MaxRisk, r.Action, r.Priority, r.Active, r.CreatedAt)
+	return err
+}
+
+func (q *Queries) ListApprovalRules(ctx context.Context, datasetID *uuid.UUID) ([]models.ApprovalRule, error) {
+	var rows pgx.Rows
+	var err error
+	
+	if datasetID != nil {
+		rows, err = q.pool.Query(ctx, `
+			SELECT id, dataset_id, name, COALESCE(field, ''), COALESCE(module, ''), min_confidence, COALESCE(max_risk, ''), action, priority, active, created_at, updated_at
+			FROM approval_rules WHERE dataset_id = $1 OR dataset_id IS NULL ORDER BY priority DESC, created_at
+		`, datasetID)
+	} else {
+		rows, err = q.pool.Query(ctx, `
+			SELECT id, dataset_id, name, COALESCE(field, ''), COALESCE(module, ''), min_confidence, COALESCE(max_risk, ''), action, priority, active, created_at, updated_at
+			FROM approval_rules ORDER BY priority DESC, created_at
+		`)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rules []models.ApprovalRule
+	for rows.Next() {
+		var r models.ApprovalRule
+		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.Field, &r.Module, &r.MinConfidence, &r.MaxRisk, &r.Action, &r.Priority, &r.Active, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		rules = append(rules, r)
+	}
+	return rules, nil
+}
+
+func (q *Queries) UpdateApprovalRule(ctx context.Context, r models.ApprovalRule) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE approval_rules SET name = $2, field = $3, module = $4, min_confidence = $5, max_risk = $6, action = $7, priority = $8, active = $9, updated_at = NOW()
+		WHERE id = $1
+	`, r.ID, r.Name, r.Field, r.Module, r.MinConfidence, r.MaxRisk, r.Action, r.Priority, r.Active)
+	return err
+}
+
+func (q *Queries) DeleteApprovalRule(ctx context.Context, id uuid.UUID) error {
+	_, err := q.pool.Exec(ctx, `DELETE FROM approval_rules WHERE id = $1`, id)
+	return err
+}
+
+// ===== JOB OPERATIONS (Enhanced) =====
+
+func (q *Queries) CreateJobWithDetails(ctx context.Context, j models.JobWithDetails) error {
+	logsJSON, _ := json.Marshal(j.Logs)
+	_, err := q.pool.Exec(ctx, `
+		INSERT INTO jobs (id, dataset_id, type, status, module, total_items, processed_items, proposals_generated, logs, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+	`, j.ID, j.DatasetID, j.Type, j.Status, j.Module, j.TotalItems, j.ProcessedItems, j.ProposalsGenerated, logsJSON, j.CreatedAt)
+	return err
+}
+
+func (q *Queries) UpdateJobProgress(ctx context.Context, jobID uuid.UUID, processed, proposals int, log *models.JobLog) error {
+	if log != nil {
+		_, err := q.pool.Exec(ctx, `
+			UPDATE jobs SET 
+				processed_items = $2, 
+				proposals_generated = $3, 
+				logs = logs || $4::jsonb,
+				updated_at = NOW()
+			WHERE id = $1
+		`, jobID, processed, proposals, log)
+		return err
+	}
+	_, err := q.pool.Exec(ctx, `
+		UPDATE jobs SET processed_items = $2, proposals_generated = $3, updated_at = NOW() WHERE id = $1
+	`, jobID, processed, proposals)
+	return err
+}
+
+func (q *Queries) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, status string, errMsg *string) error {
+	if status == "running" {
+		_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, started_at = NOW(), updated_at = NOW() WHERE id = $1`, jobID, status)
+		return err
+	}
+	if status == "completed" || status == "failed" {
+		_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, error = $3, completed_at = NOW(), updated_at = NOW() WHERE id = $1`, jobID, status, errMsg)
+		return err
+	}
+	_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, updated_at = NOW() WHERE id = $1`, jobID, status)
+	return err
+}
+
+func (q *Queries) GetJob(ctx context.Context, id uuid.UUID) (*models.JobWithDetails, error) {
+	var j models.JobWithDetails
+	var logsJSON []byte
+	err := q.pool.QueryRow(ctx, `
+		SELECT id, dataset_id, type, status, COALESCE(module, ''), COALESCE(total_items, 0), COALESCE(processed_items, 0), COALESCE(proposals_generated, 0), COALESCE(logs, '[]'), error, started_at, completed_at, created_at, updated_at
+		FROM jobs WHERE id = $1
+	`, id).Scan(&j.ID, &j.DatasetID, &j.Type, &j.Status, &j.Module, &j.TotalItems, &j.ProcessedItems, &j.ProposalsGenerated, &logsJSON, &j.Error, &j.StartedAt, &j.CompletedAt, &j.CreatedAt, &j.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(logsJSON, &j.Logs)
+	return &j, nil
+}
+
+func (q *Queries) ListJobs(ctx context.Context, datasetID *uuid.UUID, status string, limit int) ([]models.JobWithDetails, error) {
+	query := `
+		SELECT j.id, j.dataset_id, j.type, j.status, COALESCE(j.module, ''), COALESCE(j.total_items, 0), COALESCE(j.processed_items, 0), COALESCE(j.proposals_generated, 0), COALESCE(j.logs, '[]'), j.error, j.started_at, j.completed_at, j.created_at, j.updated_at
+		FROM jobs j
+		WHERE ($1::uuid IS NULL OR j.dataset_id = $1)
+		AND ($2 = '' OR j.status = $2)
+		ORDER BY j.created_at DESC LIMIT $3
+	`
+	rows, err := q.pool.Query(ctx, query, datasetID, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []models.JobWithDetails
+	for rows.Next() {
+		var j models.JobWithDetails
+		var logsJSON []byte
+		if err := rows.Scan(&j.ID, &j.DatasetID, &j.Type, &j.Status, &j.Module, &j.TotalItems, &j.ProcessedItems, &j.ProposalsGenerated, &logsJSON, &j.Error, &j.StartedAt, &j.CompletedAt, &j.CreatedAt, &j.UpdatedAt); err != nil {
+			return nil, err
+		}
+		json.Unmarshal(logsJSON, &j.Logs)
+		jobs = append(jobs, j)
+	}
+	return jobs, nil
+}
+
+// ===== PROPOSALS BY MODULE =====
+
+func (q *Queries) GetProposalsByModule(ctx context.Context, datasetID *uuid.UUID) ([]models.ProposalsByModule, error) {
+	query := `
+		SELECT 
+			COALESCE(p.module, 'unknown') as module,
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE p.status = 'proposed') as pending,
+			COUNT(*) FILTER (WHERE p.status = 'accepted') as approved,
+			COUNT(*) FILTER (WHERE p.status = 'rejected') as rejected,
+			0 as auto_approved
+		FROM proposals p
+		JOIN products pr ON p.product_id = pr.id
+		WHERE ($1::uuid IS NULL OR pr.dataset_id = $1)
+		GROUP BY COALESCE(p.module, 'unknown')
+		ORDER BY total DESC
+	`
+	rows, err := q.pool.Query(ctx, query, datasetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []models.ProposalsByModule
+	for rows.Next() {
+		var r models.ProposalsByModule
+		if err := rows.Scan(&r.Module, &r.Total, &r.Pending, &r.Approved, &r.Rejected, &r.AutoApproved); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+func (q *Queries) ListProposalsByModule(ctx context.Context, module string, datasetID *uuid.UUID, status string, limit int) ([]models.ProposalWithProduct, error) {
+	query := `
+		SELECT p.id, p.product_id, p.session_id, p.field, p.before_value, p.after_value, p.rationale, p.sources, p.confidence, p.risk_level, p.status, p.reviewed_by, p.reviewed_at, p.created_at,
+			COALESCE(p.module, ''), pr.external_id, COALESCE(pr.current_data->>'title', ''), pr.dataset_id, d.name
+		FROM proposals p
+		JOIN products pr ON p.product_id = pr.id
+		JOIN datasets d ON pr.dataset_id = d.id
+		WHERE ($1 = '' OR COALESCE(p.module, '') = $1)
+		AND ($2::uuid IS NULL OR pr.dataset_id = $2)
+		AND ($3 = '' OR p.status = $3)
+		ORDER BY p.created_at DESC LIMIT $4
+	`
+	rows, err := q.pool.Query(ctx, query, module, datasetID, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var proposals []models.ProposalWithProduct
+	for rows.Next() {
+		var p models.ProposalWithProduct
+		if err := rows.Scan(&p.ID, &p.ProductID, &p.SessionID, &p.Field, &p.BeforeValue, &p.AfterValue, &p.Rationale, &p.Sources, &p.Confidence, &p.RiskLevel, &p.Status, &p.ReviewedBy, &p.ReviewedAt, &p.CreatedAt,
+			&p.Module, &p.ProductExternalID, &p.ProductTitle, &p.DatasetID, &p.DatasetName); err != nil {
+			return nil, err
+		}
+		proposals = append(proposals, p)
+	}
+	return proposals, nil
+}
+
+// ApplyApprovalRules applies rules to pending proposals and returns count of affected
+func (q *Queries) ApplyApprovalRules(ctx context.Context, datasetID *uuid.UUID) (int, error) {
+	// Get active rules ordered by priority
+	rules, err := q.ListApprovalRules(ctx, datasetID)
+	if err != nil {
+		return 0, err
+	}
+
+	totalAffected := 0
+	for _, rule := range rules {
+		if !rule.Active {
+			continue
+		}
+
+		// Build query based on rule criteria
+		query := `
+			UPDATE proposals SET status = $1, reviewed_at = NOW(), reviewed_by = 'rule:' || $2
+			WHERE status = 'proposed'
+			AND ($3 = '' OR field = $3)
+			AND ($4 = '' OR module = $4)
+			AND ($5::decimal = 0 OR confidence >= $5)
+			AND ($6 = '' OR risk_level = $6 OR ($6 = 'low' AND risk_level = 'low') OR ($6 = 'medium' AND risk_level IN ('low', 'medium')))
+		`
+		
+		newStatus := "accepted"
+		if rule.Action == "auto_reject" {
+			newStatus = "rejected"
+		} else if rule.Action == "flag" {
+			continue // Skip flagging rules for now
+		}
+
+		result, err := q.pool.Exec(ctx, query, newStatus, rule.Name, rule.Field, rule.Module, rule.MinConfidence, rule.MaxRisk)
+		if err != nil {
+			return totalAffected, err
+		}
+		totalAffected += int(result.RowsAffected())
+	}
+
+	return totalAffected, nil
 }

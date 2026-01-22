@@ -195,3 +195,107 @@ type AnalysisResult struct {
 		PotentialAction string `json:"potential_action"`
 	} `json:"improvement_opportunities"`
 }
+
+// ===== DATA FEEDS MODELS =====
+
+// DatasetVersion represents an import version of a dataset
+type DatasetVersion struct {
+	ID            uuid.UUID  `json:"id" db:"id"`
+	DatasetID     uuid.UUID  `json:"dataset_id" db:"dataset_id"`
+	VersionNumber int        `json:"version_number" db:"version_number"`
+	FileName      string     `json:"file_name" db:"file_name"`
+	RowCount      int        `json:"row_count" db:"row_count"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	CreatedBy     string     `json:"created_by" db:"created_by"`
+	Notes         string     `json:"notes" db:"notes"`
+}
+
+// DatasetSnapshot represents a point-in-time snapshot of a dataset
+type DatasetSnapshot struct {
+	ID           uuid.UUID  `json:"id" db:"id"`
+	DatasetID    uuid.UUID  `json:"dataset_id" db:"dataset_id"`
+	Name         string     `json:"name" db:"name"`
+	SnapshotType string     `json:"snapshot_type" db:"snapshot_type"` // pre_enrichment, post_enrichment, manual
+	ProductCount int        `json:"product_count" db:"product_count"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	CreatedBy    string     `json:"created_by" db:"created_by"`
+}
+
+// SnapshotProduct stores product data for a snapshot
+type SnapshotProduct struct {
+	ID          uuid.UUID       `json:"id" db:"id"`
+	SnapshotID  uuid.UUID       `json:"snapshot_id" db:"snapshot_id"`
+	ProductID   uuid.UUID       `json:"product_id" db:"product_id"`
+	RawData     json.RawMessage `json:"raw_data" db:"raw_data"`
+	CurrentData json.RawMessage `json:"current_data" db:"current_data"`
+}
+
+// ChangeLogEntry represents an audit trail entry
+type ChangeLogEntry struct {
+	ID        uuid.UUID  `json:"id" db:"id"`
+	DatasetID *uuid.UUID `json:"dataset_id" db:"dataset_id"`
+	ProductID *uuid.UUID `json:"product_id" db:"product_id"`
+	Action    string     `json:"action" db:"action"` // import, proposal_accepted, proposal_rejected, manual_edit, export, restore
+	Field     string     `json:"field" db:"field"`
+	OldValue  string     `json:"old_value" db:"old_value"`
+	NewValue  string     `json:"new_value" db:"new_value"`
+	Source    string     `json:"source" db:"source"` // user, agent, rule
+	Module    string     `json:"module" db:"module"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	CreatedBy string     `json:"created_by" db:"created_by"`
+}
+
+// ApprovalRule defines auto-approval/rejection criteria
+type ApprovalRule struct {
+	ID            uuid.UUID  `json:"id" db:"id"`
+	DatasetID     *uuid.UUID `json:"dataset_id" db:"dataset_id"` // nil = global
+	Name          string     `json:"name" db:"name"`
+	Field         string     `json:"field" db:"field"`   // empty = all fields
+	Module        string     `json:"module" db:"module"` // empty = all modules
+	MinConfidence float64    `json:"min_confidence" db:"min_confidence"`
+	MaxRisk       string     `json:"max_risk" db:"max_risk"` // low, medium, high
+	Action        string     `json:"action" db:"action"`     // auto_approve, auto_reject, flag
+	Priority      int        `json:"priority" db:"priority"`
+	Active        bool       `json:"active" db:"active"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     *time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// JobLog represents a single log entry for a job
+type JobLog struct {
+	Timestamp time.Time `json:"timestamp"`
+	Level     string    `json:"level"` // info, success, warning, error
+	Message   string    `json:"message"`
+	Details   string    `json:"details,omitempty"`
+}
+
+// JobWithDetails extends Job with execution tracking fields
+type JobWithDetails struct {
+	Job
+	Module             string    `json:"module" db:"module"`
+	TotalItems         int       `json:"total_items" db:"total_items"`
+	ProcessedItems     int       `json:"processed_items" db:"processed_items"`
+	ProposalsGenerated int       `json:"proposals_generated" db:"proposals_generated"`
+	Logs               []JobLog  `json:"logs"`
+	UpdatedAt          *time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ProposalWithProduct extends Proposal with product context
+type ProposalWithProduct struct {
+	Proposal
+	Module            string `json:"module" db:"module"`
+	ProductExternalID string `json:"product_external_id" db:"product_external_id"`
+	ProductTitle      string `json:"product_title" db:"product_title"`
+	DatasetID         uuid.UUID `json:"dataset_id" db:"dataset_id"`
+	DatasetName       string `json:"dataset_name" db:"dataset_name"`
+}
+
+// ProposalsByModule groups proposals by optimization module
+type ProposalsByModule struct {
+	Module       string `json:"module"`
+	Total        int    `json:"total"`
+	Pending      int    `json:"pending"`
+	Approved     int    `json:"approved"`
+	Rejected     int    `json:"rejected"`
+	AutoApproved int    `json:"auto_approved"`
+}

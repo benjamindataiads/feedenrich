@@ -48,16 +48,27 @@
                 </div>
                 <!-- Navigation Tabs -->
                 <div class="flex gap-1 mt-4">
+                    <button @click="currentTab = 'datafeeds'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'datafeeds' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        📁 Data Feeds
+                        <span x-show="datasets.length > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 rounded-full" x-text="datasets.length"></span>
+                    </button>
                     <button @click="currentTab = 'dashboard'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
                             :class="currentTab === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
                         📊 Dashboard
                     </button>
-                    <button @click="currentTab = 'products'" 
+                    <button @click="currentTab = 'audit'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
-                            :class="currentTab === 'products' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
-                        📦 Products
-                        <span x-show="products.length > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 rounded-full" x-text="products.length"></span>
+                            :class="currentTab === 'audit' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        🔍 Audit & Optimize
+                    </button>
+                    <button @click="currentTab = 'execution'" 
+                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
+                            :class="currentTab === 'execution' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
+                        ⚡ Execution
+                        <span x-show="activeJobs.length > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500 rounded-full animate-pulse" x-text="activeJobs.length"></span>
                     </button>
                     <button @click="currentTab = 'validation'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
@@ -68,12 +79,7 @@
                     <button @click="currentTab = 'settings'" 
                             class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
                             :class="currentTab === 'settings' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
-                        ⚙️ Agent Settings
-                    </button>
-                    <button @click="currentTab = 'docs'" 
-                            class="px-4 py-2 rounded-t-lg text-sm font-medium transition-all"
-                            :class="currentTab === 'docs' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'">
-                        📖 Documentation
+                        ⚙️ Settings
                     </button>
                 </div>
             </header>
@@ -81,32 +87,197 @@
             <!-- Main Content Area -->
             <main class="flex-1 overflow-y-auto p-6 space-y-6">
                 
+                <!-- ============ DATA FEEDS TAB ============ -->
+                <div x-show="currentTab === 'datafeeds'" class="flex gap-6 h-full">
+                    
+                    <!-- Left Panel: Datasets & Import -->
+                    <div class="w-80 flex-shrink-0 space-y-4">
+                        <!-- Import Section -->
+                        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                            <h3 class="text-sm font-semibold mb-3 text-gray-300">Import Dataset</h3>
+                            <form @submit.prevent="uploadDataset" class="space-y-3">
+                                <input type="text" x-model="uploadName" placeholder="Dataset name" 
+                                       class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-400">
+                                <input type="file" @change="uploadFile = $event.target.files[0]" accept=".tsv,.csv,.txt"
+                                       class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-blue-600 file:text-white file:text-xs file:cursor-pointer">
+                                <button type="submit" :disabled="!uploadFile || uploading" 
+                                        class="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+                                    <span x-show="!uploading">Import</span>
+                                    <span x-show="uploading" class="pulse">Importing...</span>
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Datasets List -->
+                        <div class="bg-gray-800 rounded-xl border border-gray-700 flex-1 overflow-hidden">
+                            <div class="p-3 border-b border-gray-700 flex justify-between items-center">
+                                <h3 class="text-sm font-semibold text-gray-300">Datasets</h3>
+                                <button @click="loadDatasets()" class="text-xs text-blue-400 hover:text-blue-300">Refresh</button>
+                            </div>
+                            <div class="overflow-y-auto max-h-96">
+                                <template x-for="ds in datasets" :key="ds.id">
+                                    <div @click="selectFeedDataset(ds)" 
+                                         class="p-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/30 transition-colors"
+                                         :class="selectedFeedDataset?.id === ds.id ? 'bg-blue-900/30 border-l-2 border-l-blue-500' : ''">
+                                        <div class="font-medium text-sm text-white" x-text="ds.name"></div>
+                                        <div class="text-xs text-gray-400 mt-1">
+                                            <span x-text="ds.row_count"></span> products
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="datasets.length === 0" class="p-4 text-center text-gray-500 text-sm">
+                                    No datasets yet. Import one above.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel: Selected Dataset Details -->
+                    <div class="flex-1 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col" x-show="selectedFeedDataset">
+                        <!-- Header -->
+                        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                            <div>
+                                <h2 class="text-lg font-semibold text-white" x-text="selectedFeedDataset?.name"></h2>
+                                <p class="text-sm text-gray-400" x-text="selectedFeedDataset?.row_count + ' products'"></p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button @click="createSnapshot()" class="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+                                    📸 Snapshot
+                                </button>
+                                <a :href="'/api/datasets/' + selectedFeedDataset?.id + '/export?format=tsv'" 
+                                   class="px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                    ⬇️ Export
+                                </a>
+                                <button @click="deleteDataset(selectedFeedDataset?.id); selectedFeedDataset = null" 
+                                        class="px-3 py-1.5 bg-red-600/30 text-red-400 rounded text-sm hover:bg-red-600/50">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Sub-tabs -->
+                        <div class="flex border-b border-gray-700 px-4">
+                            <button @click="feedSubTab = 'products'" 
+                                    class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+                                    :class="feedSubTab === 'products' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'">
+                                Products <span class="text-xs opacity-70" x-text="'(' + feedProducts.length + ')'"></span>
+                            </button>
+                            <button @click="feedSubTab = 'versions'; loadFeedVersions(selectedFeedDataset.id)" 
+                                    class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+                                    :class="feedSubTab === 'versions' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'">
+                                Versions <span class="text-xs opacity-70" x-text="'(' + feedVersions.length + ')'"></span>
+                            </button>
+                            <button @click="feedSubTab = 'snapshots'" 
+                                    class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+                                    :class="feedSubTab === 'snapshots' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'">
+                                Snapshots <span class="text-xs opacity-70" x-text="'(' + feedSnapshots.length + ')'"></span>
+                            </button>
+                            <button @click="feedSubTab = 'changelog'; loadFeedChangelog(selectedFeedDataset.id)" 
+                                    class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+                                    :class="feedSubTab === 'changelog' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'">
+                                Change Log
+                            </button>
+                        </div>
+                        
+                        <!-- Sub-tab Content -->
+                        <div class="flex-1 overflow-y-auto">
+                            <!-- Products Sub-tab -->
+                            <div x-show="feedSubTab === 'products'" class="p-4">
+                                <table class="w-full text-sm">
+                                    <thead class="text-gray-400 text-left">
+                                        <tr>
+                                            <th class="pb-2 font-medium">ID</th>
+                                            <th class="pb-2 font-medium">Title</th>
+                                            <th class="pb-2 font-medium">Status</th>
+                                            <th class="pb-2 font-medium">Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="p in feedProducts.slice(0, 50)" :key="p.id">
+                                            <tr class="border-t border-gray-700/50 hover:bg-gray-700/30 cursor-pointer" @click="viewProduct(p)">
+                                                <td class="py-2 text-gray-400" x-text="p.external_id"></td>
+                                                <td class="py-2 text-white" x-text="(p.current_data?.title || p.raw_data?.title || '-').substring(0, 50)"></td>
+                                                <td class="py-2">
+                                                    <span class="px-2 py-0.5 rounded text-xs"
+                                                          :class="p.status === 'enriched' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'"
+                                                          x-text="p.status"></span>
+                                                </td>
+                                                <td class="py-2 text-gray-300" x-text="p.agent_readiness_score ? (p.agent_readiness_score * 100).toFixed(0) + '%' : '-'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                                <div x-show="feedProducts.length > 50" class="mt-4 text-center text-gray-500 text-sm">
+                                    Showing 50 of <span x-text="feedProducts.length"></span> products
+                                </div>
+                            </div>
+                            
+                            <!-- Versions Sub-tab -->
+                            <div x-show="feedSubTab === 'versions'" class="p-4 space-y-3">
+                                <template x-for="v in feedVersions" :key="v.id">
+                                    <div class="bg-gray-700/30 rounded-lg p-3 flex justify-between items-center">
+                                        <div>
+                                            <div class="font-medium text-white">Version <span x-text="v.version_number"></span></div>
+                                            <div class="text-xs text-gray-400">
+                                                <span x-text="v.file_name"></span> • <span x-text="v.row_count"></span> rows • <span x-text="new Date(v.created_at).toLocaleString()"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="feedVersions.length === 0" class="text-center text-gray-500 py-8">No version history yet</div>
+                            </div>
+                            
+                            <!-- Snapshots Sub-tab -->
+                            <div x-show="feedSubTab === 'snapshots'" class="p-4 space-y-3">
+                                <template x-for="s in feedSnapshots" :key="s.id">
+                                    <div class="bg-gray-700/30 rounded-lg p-3 flex justify-between items-center">
+                                        <div>
+                                            <div class="font-medium text-white" x-text="s.name"></div>
+                                            <div class="text-xs text-gray-400">
+                                                <span class="px-1.5 py-0.5 rounded text-xs mr-2"
+                                                      :class="s.snapshot_type === 'manual' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'"
+                                                      x-text="s.snapshot_type"></span>
+                                                <span x-text="s.product_count"></span> products • <span x-text="new Date(s.created_at).toLocaleString()"></span>
+                                            </div>
+                                        </div>
+                                        <button @click="deleteSnapshot(s.id)" class="text-red-400 text-xs hover:text-red-300">Delete</button>
+                                    </div>
+                                </template>
+                                <div x-show="feedSnapshots.length === 0" class="text-center text-gray-500 py-8">No snapshots yet. Create one to save the current state.</div>
+                            </div>
+                            
+                            <!-- Changelog Sub-tab -->
+                            <div x-show="feedSubTab === 'changelog'" class="p-4">
+                                <div class="space-y-2">
+                                    <template x-for="entry in feedChangelog" :key="entry.id">
+                                        <div class="bg-gray-700/30 rounded p-2 text-sm">
+                                            <div class="flex justify-between">
+                                                <span class="font-medium" x-text="entry.action"></span>
+                                                <span class="text-xs text-gray-500" x-text="new Date(entry.created_at).toLocaleString()"></span>
+                                            </div>
+                                            <div class="text-xs text-gray-400" x-show="entry.field">
+                                                <span x-text="entry.field"></span>: <span x-text="entry.old_value?.substring(0, 20) || '-'"></span> → <span x-text="entry.new_value?.substring(0, 20) || '-'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div x-show="feedChangelog.length === 0" class="text-center text-gray-500 py-8">No changes recorded yet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div x-show="!selectedFeedDataset" class="flex-1 flex items-center justify-center bg-gray-800/50 rounded-xl border border-gray-700 border-dashed">
+                        <div class="text-center text-gray-500">
+                            <div class="text-4xl mb-2">📁</div>
+                            <div>Select a dataset from the left panel</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- END DATA FEEDS TAB -->
+
                 <!-- ============ DASHBOARD TAB ============ -->
                 <div x-show="currentTab === 'dashboard'">
-                
-                <!-- Upload Section -->
-                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 mb-6">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <span>📁</span> Import Dataset
-                    </h2>
-                    <form @submit.prevent="uploadDataset" class="flex gap-4 items-end flex-wrap">
-                        <div class="flex-1 min-w-48">
-                            <label class="block text-sm text-gray-400 mb-1">Dataset Name</label>
-                            <input type="text" x-model="uploadName" placeholder="My Catalog Q1 2024" 
-                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
-                        </div>
-                        <div class="flex-1 min-w-48">
-                            <label class="block text-sm text-gray-400 mb-1">TSV/CSV File</label>
-                            <input type="file" @change="uploadFile = $event.target.files[0]" accept=".tsv,.csv,.txt"
-                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white file:mr-4 file:py-1 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white file:cursor-pointer">
-                        </div>
-                        <button type="submit" :disabled="!uploadFile || uploading" 
-                                class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium">
-                            <span x-show="!uploading">Upload</span>
-                            <span x-show="uploading" class="pulse">Uploading...</span>
-                        </button>
-                    </form>
-                </div>
 
                 <!-- Datasets with Quality Dashboard -->
                 <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
@@ -382,6 +553,128 @@
                 
                 </div><!-- End Dashboard Tab -->
 
+                <!-- ============ AUDIT & OPTIMIZE TAB ============ -->
+                <div x-show="currentTab === 'audit'" class="space-y-6">
+                    
+                    <!-- Dataset Selection -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <span>📁</span> Select Dataset to Audit & Optimize
+                        </h2>
+                        <select x-model="selectedAuditDataset" @change="loadAuditGroups()"
+                                class="w-full md:w-1/2 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white">
+                            <option value="">-- Select a dataset --</option>
+                            <template x-for="ds in datasets" :key="ds.id">
+                                <option :value="ds.id" x-text="ds.name + ' (' + ds.row_count + ' products)'"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Optimization Groups -->
+                    <div x-show="selectedAuditDataset" class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <span>🔍</span> Optimization Groups
+                            </h2>
+                            <div class="text-sm text-gray-400">
+                                Based on <a href="https://dataiads-test1.fr/feedenrich/" target="_blank" class="text-blue-400 hover:underline">Dataïads GMC Methodology</a>
+                            </div>
+                        </div>
+                        
+                        <p class="text-sm text-gray-400">
+                            Run targeted audits by category. Each group focuses on specific attributes for better control and faster processing.
+                        </p>
+
+                        <!-- Group Cards Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <template x-for="group in auditGroups" :key="group.id">
+                                <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-blue-500/50 transition-all">
+                                    <!-- Header -->
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-2xl" x-text="group.icon"></span>
+                                            <h3 class="font-semibold text-white" x-text="group.name"></h3>
+                                        </div>
+                                        <span x-show="group.safe" 
+                                              class="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-400 border border-green-500/30">
+                                            100% SAFE
+                                        </span>
+                                        <span x-show="!group.safe" 
+                                              class="px-2 py-0.5 text-xs rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                                            A/B Test
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Description -->
+                                    <p class="text-sm text-gray-400 mb-3" x-text="group.description"></p>
+                                    
+                                    <!-- Fields -->
+                                    <div class="flex flex-wrap gap-1 mb-4">
+                                        <template x-for="field in group.fields.slice(0, 5)" :key="field">
+                                            <span class="px-2 py-0.5 text-xs rounded bg-gray-700 text-gray-300" x-text="field"></span>
+                                        </template>
+                                        <span x-show="group.fields.length > 5" class="px-2 py-0.5 text-xs rounded bg-gray-700 text-gray-300"
+                                              x-text="'+' + (group.fields.length - 5) + ' more'"></span>
+                                    </div>
+                                    
+                                    <!-- Status & Action -->
+                                    <div class="flex justify-between items-center">
+                                        <div x-show="auditStatus[group.id]">
+                                            <span x-show="auditStatus[group.id] === 'running'" class="text-yellow-400 text-sm pulse">⏳ Running...</span>
+                                            <span x-show="auditStatus[group.id] === 'completed'" class="text-green-400 text-sm">✅ Done</span>
+                                        </div>
+                                        <button @click="runAuditGroup(group.id)"
+                                                :disabled="auditStatus[group.id] === 'running'"
+                                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 ml-auto">
+                                            <span x-show="auditStatus[group.id] !== 'running'">🚀 Run</span>
+                                            <span x-show="auditStatus[group.id] === 'running'" class="pulse">Running...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Run All Button -->
+                        <div class="flex justify-center mt-6">
+                            <button @click="runAllAuditGroups()"
+                                    :disabled="Object.values(auditStatus).some(s => s === 'running')"
+                                    class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center gap-2">
+                                🔄 Run Full Audit (All Groups Sequentially)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Methodology Reference -->
+                    <div x-show="selectedAuditDataset" class="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <span>📋</span> Dataïads GMC Feed Optimization Methodology
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                            <div>
+                                <h4 class="text-green-400 font-medium mb-2">✅ 100% Safe - Rollout Immédiat</h4>
+                                <ul class="text-gray-400 space-y-1">
+                                    <li>• Critical Errors: Fix policy violations, invalid URLs/GTINs</li>
+                                    <li>• Required Attributes: Complete mandatory fields</li>
+                                    <li>• Recommended Attributes: Enrich with category, color, size</li>
+                                    <li>• Pricing & Promotions: Validate price structure</li>
+                                    <li>• Image Analysis: Check quality and compliance</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="text-yellow-400 font-medium mb-2">🧪 A/B Test Recommandé</h4>
+                                <ul class="text-gray-400 space-y-1">
+                                    <li>• Title Optimization: Restructure titles with templates</li>
+                                    <li>• Description Optimization: Enhance with structure</li>
+                                </ul>
+                                <p class="text-gray-500 mt-2 text-xs">
+                                    These changes affect user-visible content. Test on 10-20% of products before full rollout.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- End Audit & Optimize Tab -->
+
                 <!-- ============ PRODUCTS TAB ============ -->
                 <div x-show="currentTab === 'products'" class="space-y-6">
                     
@@ -506,16 +799,259 @@
                     </div>
                 </div><!-- End Products Tab -->
 
+                <!-- ============ EXECUTION TAB ============ -->
+                <div x-show="currentTab === 'execution'" class="space-y-6">
+                    
+                    <!-- Active Jobs -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <span class="animate-pulse">⚡</span> Active Jobs
+                            </h2>
+                            <button @click="loadJobs()" class="text-blue-400 text-sm hover:text-blue-300">Refresh</button>
+                        </div>
+                        
+                        <div x-show="activeJobs.length === 0" class="text-center text-gray-500 py-8">
+                            No active jobs. Start an optimization from the Audit & Optimize tab.
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <template x-for="job in activeJobs" :key="job.id">
+                                <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div>
+                                            <div class="font-medium text-white flex items-center gap-2">
+                                                <span x-text="job.module || job.type"></span>
+                                                <span class="px-2 py-0.5 rounded text-xs"
+                                                      :class="job.status === 'running' ? 'bg-yellow-500/20 text-yellow-400 animate-pulse' : 'bg-blue-500/20 text-blue-400'"
+                                                      x-text="job.status"></span>
+                                            </div>
+                                            <div class="text-sm text-gray-400 mt-1">
+                                                Duration: <span x-text="getJobDuration(job)"></span>
+                                            </div>
+                                        </div>
+                                        <button @click="toggleJobLogs(job.id)" class="text-gray-400 hover:text-white text-sm">
+                                            <span x-show="!expandedJobLogs[job.id]">Show Logs ▼</span>
+                                            <span x-show="expandedJobLogs[job.id]">Hide Logs ▲</span>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Progress Bar -->
+                                    <div class="mb-2">
+                                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                            <span><span x-text="job.processed_items"></span> / <span x-text="job.total_items || '?'"></span> products</span>
+                                            <span><span x-text="job.proposals_generated"></span> proposals</span>
+                                        </div>
+                                        <div class="h-2 bg-gray-600 rounded-full overflow-hidden">
+                                            <div class="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
+                                                 :style="'width: ' + getJobProgress(job) + '%'"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Expandable Logs -->
+                                    <div x-show="expandedJobLogs[job.id]" class="mt-3 bg-gray-900 rounded p-3 max-h-48 overflow-y-auto">
+                                        <template x-for="log in (job.logs || []).slice(-20)" :key="log.timestamp">
+                                            <div class="text-xs py-1 border-b border-gray-700/50">
+                                                <span class="text-gray-500" x-text="new Date(log.timestamp).toLocaleTimeString()"></span>
+                                                <span :class="{
+                                                    'text-blue-400': log.level === 'info',
+                                                    'text-green-400': log.level === 'success',
+                                                    'text-yellow-400': log.level === 'warning',
+                                                    'text-red-400': log.level === 'error'
+                                                }" x-text="log.message"></span>
+                                            </div>
+                                        </template>
+                                        <div x-show="!job.logs || job.logs.length === 0" class="text-gray-500">No logs yet</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Completed Jobs -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4">Completed Jobs (Last 24h)</h2>
+                        
+                        <div x-show="completedJobs.length === 0" class="text-center text-gray-500 py-4">
+                            No completed jobs yet
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <template x-for="job in completedJobs" :key="job.id">
+                                <div class="bg-gray-700/20 rounded p-3 flex justify-between items-center">
+                                    <div>
+                                        <span class="font-medium" x-text="job.module || job.type"></span>
+                                        <span class="text-gray-400 text-sm ml-2">
+                                            <span x-text="job.processed_items"></span> products • 
+                                            <span x-text="job.proposals_generated"></span> proposals • 
+                                            <span x-text="getJobDuration(job)"></span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded text-xs"
+                                              :class="job.status === 'completed' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+                                              x-text="job.status"></span>
+                                        <span class="text-xs text-gray-500" x-text="job.completed_at ? new Date(job.completed_at).toLocaleString() : ''"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div><!-- End Execution Tab -->
+
                 <!-- ============ VALIDATION TAB ============ -->
                 <div x-show="currentTab === 'validation'" x-init="initValidation()" class="space-y-6">
                     
-                    <!-- Quick Actions -->
+                    <!-- Auto-Approval Rules Section -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold">Auto-Approval Rules</h2>
+                            <button @click="applyApprovalRules()" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                                Apply Rules to Pending
+                            </button>
+                        </div>
+                        
+                        <!-- Existing Rules -->
+                        <div class="space-y-2 mb-4">
+                            <template x-for="rule in approvalRules" :key="rule.id">
+                                <div class="bg-gray-700/30 rounded p-3 flex justify-between items-center">
+                                    <div>
+                                        <span class="font-medium" x-text="rule.name"></span>
+                                        <span class="text-sm text-gray-400 ml-2">
+                                            Confidence ≥ <span x-text="(rule.min_confidence * 100).toFixed(0)"></span>%
+                                            <span x-show="rule.max_risk">, Risk ≤ <span x-text="rule.max_risk"></span></span>
+                                            <span x-show="rule.field">, Field: <span x-text="rule.field"></span></span>
+                                            → <span x-text="rule.action"></span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button @click="toggleRuleActive(rule)" 
+                                                class="px-2 py-1 rounded text-xs"
+                                                :class="rule.active ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'"
+                                                x-text="rule.active ? 'Active' : 'Inactive'"></button>
+                                        <button @click="deleteApprovalRule(rule.id)" class="text-red-400 text-xs hover:text-red-300">Delete</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Add New Rule -->
+                        <div class="bg-gray-700/20 rounded p-4">
+                            <h4 class="text-sm font-medium mb-3">Add New Rule</h4>
+                            <div class="grid grid-cols-6 gap-3">
+                                <input type="text" x-model="newRule.name" placeholder="Rule name" 
+                                       class="col-span-2 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                                <select x-model="newRule.min_confidence" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                                    <option value="0.7">≥ 70%</option>
+                                    <option value="0.8">≥ 80%</option>
+                                    <option value="0.9">≥ 90%</option>
+                                    <option value="0.95">≥ 95%</option>
+                                </select>
+                                <select x-model="newRule.max_risk" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                                    <option value="low">Risk: Low only</option>
+                                    <option value="medium">Risk: Low+Medium</option>
+                                    <option value="">Any risk</option>
+                                </select>
+                                <select x-model="newRule.action" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                                    <option value="auto_approve">Auto-Approve</option>
+                                    <option value="auto_reject">Auto-Reject</option>
+                                </select>
+                                <button @click="createApprovalRule()" class="bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Module-based Review -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4">Review by Module</h2>
+                        
+                        <!-- Module Selector -->
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            <button @click="selectModule('all')"
+                                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                    :class="selectedModule === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">
+                                All (<span x-text="getTotalPendingByModule()"></span>)
+                            </button>
+                            <template x-for="mod in proposalsByModule" :key="mod.module">
+                                <button @click="selectModule(mod.module)"
+                                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                        :class="selectedModule === mod.module ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">
+                                    <span x-text="mod.module"></span> (<span x-text="mod.pending"></span>)
+                                </button>
+                            </template>
+                        </div>
+                        
+                        <!-- Proposals List -->
+                        <div class="space-y-2">
+                            <template x-for="prop in moduleProposals.slice(0, 20)" :key="prop.id">
+                                <div class="bg-gray-700/30 rounded-lg overflow-hidden">
+                                    <!-- Collapsed Row -->
+                                    <div @click="toggleProposalExpand(prop.id)" 
+                                         class="p-3 cursor-pointer hover:bg-gray-700/50 flex justify-between items-center">
+                                        <div class="flex-1">
+                                            <span class="font-medium text-white" x-text="prop.field"></span>
+                                            <span class="text-gray-400 text-sm ml-2">
+                                                "<span x-text="(prop.before_value || '').substring(0, 20)"></span>..." → 
+                                                "<span x-text="prop.after_value.substring(0, 20)"></span>..."
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-xs px-2 py-0.5 rounded" 
+                                                  :class="prop.confidence >= 0.9 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'"
+                                                  x-text="(prop.confidence * 100).toFixed(0) + '%'"></span>
+                                            <span class="text-xs text-gray-500" x-text="prop.risk_level"></span>
+                                            <span x-text="expandedProposals[prop.id] ? '▲' : '▼'" class="text-gray-500"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Expanded Details -->
+                                    <div x-show="expandedProposals[prop.id]" class="border-t border-gray-600 p-4 bg-gray-800/50">
+                                        <div class="grid grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">Product</div>
+                                                <div class="text-sm text-white" x-text="prop.product_title || prop.product_external_id"></div>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-1">Module</div>
+                                                <div class="text-sm text-gray-300" x-text="prop.module || 'unknown'"></div>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4 mb-4">
+                                            <div class="bg-red-900/20 rounded p-3">
+                                                <div class="text-xs text-red-400 mb-1">Before</div>
+                                                <div class="text-sm text-white" x-text="prop.before_value || '(empty)'"></div>
+                                            </div>
+                                            <div class="bg-green-900/20 rounded p-3">
+                                                <div class="text-xs text-green-400 mb-1">After</div>
+                                                <div class="text-sm text-white" x-text="prop.after_value"></div>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="updateProposal(prop.id, 'accept')" 
+                                                    class="flex-1 bg-green-600 text-white py-2 rounded text-sm hover:bg-green-700">
+                                                Approve
+                                            </button>
+                                            <button @click="updateProposal(prop.id, 'reject')" 
+                                                    class="flex-1 bg-red-600 text-white py-2 rounded text-sm hover:bg-red-700">
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="moduleProposals.length === 0" class="text-center text-gray-500 py-8">
+                                No pending proposals for this module
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Legacy Quick Actions (kept for compatibility) -->
                     <div class="bg-gradient-to-r from-green-600/20 to-blue-600/20 rounded-xl p-6 border border-green-500/30">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h2 class="text-xl font-bold flex items-center gap-2">⚡ Validation Rapide</h2>
+                                <h2 class="text-xl font-bold flex items-center gap-2">⚡ Quick Actions</h2>
                                 <p class="text-gray-400 text-sm mt-1">
-                                    <span x-text="pendingValidationCount"></span> proposals en attente de validation
+                                    <span x-text="pendingValidationCount"></span> proposals pending
                                 </p>
                             </div>
                             <div class="flex items-center gap-3">
@@ -1870,7 +2406,36 @@
                 productProposals: [],
                 uploadFile: null,
                 uploadName: '',
+                
+                // Feed Audit
+                selectedAuditDataset: '',
+                auditGroups: [],
+                auditStatus: {}, // { group_id: 'running' | 'completed' | null }
                 uploading: false,
+                
+                // Data Feeds state
+                selectedFeedDataset: null,
+                feedProducts: [],
+                feedVersions: [],
+                feedSnapshots: [],
+                feedChangelog: [],
+                feedSubTab: 'products', // products, versions, snapshots, changelog
+                
+                // Execution state
+                jobs: [],
+                activeJobs: [],
+                completedJobs: [],
+                expandedJobLogs: {}, // { jobId: true/false }
+                
+                // Approval Rules state
+                approvalRules: [],
+                newRule: { name: '', field: '', module: '', min_confidence: 0.9, max_risk: 'low', action: 'auto_approve' },
+                
+                // Proposals by module
+                proposalsByModule: [],
+                selectedModule: 'all',
+                moduleProposals: [],
+                expandedProposals: {}, // { proposalId: true/false }
                 
                 // Proposal filters
                 proposalFilters: {
@@ -1881,7 +2446,7 @@
                 },
                 
                 // Navigation
-                currentTab: 'dashboard',
+                currentTab: 'datafeeds',
                 
                 // Prompts state
                 prompts: [],
@@ -1926,8 +2491,12 @@
                 async init() {
                     await this.loadDatasets();
                     await this.loadProposalsWithProducts();
+                    await this.loadJobs();
+                    await this.loadApprovalRules();
+                    await this.loadProposalsByModule();
                     setInterval(() => this.loadProposalsWithProducts(), 5000);
                     setInterval(() => this.refreshAllDatasetStats(), 10000);
+                    setInterval(() => this.loadJobs(), 3000); // Poll jobs more frequently
                 },
                 
                 // Computed filtered proposals
@@ -2460,6 +3029,315 @@
                         this.uploading = false;
                     }
                 },
+
+                // ========== FEED AUDIT FUNCTIONS ==========
+                async loadAuditGroups() {
+                    try {
+                        const res = await fetch('/api/audit/groups');
+                        const data = await res.json();
+                        this.auditGroups = data.groups || [];
+                        // Reset status for all groups
+                        this.auditStatus = {};
+                        for (const g of this.auditGroups) {
+                            this.auditStatus[g.id] = null;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load audit groups:', e);
+                    }
+                },
+
+                async runAuditGroup(groupId) {
+                    if (!this.selectedAuditDataset) {
+                        alert('Please select a dataset first');
+                        return;
+                    }
+                    
+                    const group = this.auditGroups.find(g => g.id === groupId);
+                    this.auditStatus[groupId] = 'running';
+                    this.addLog('info', `🔍 Starting ${group?.name || groupId} audit`, `Processing all products...`);
+                    this.showLogPanel = true; // Show log panel to track progress
+                    
+                    try {
+                        const res = await fetch(`/api/datasets/${this.selectedAuditDataset}/audit`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ group: groupId })
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.addLog('success', `${group?.name || groupId} audit started`, `Processing ${data.total_products} products...`);
+                            
+                            // Poll for completion (in real app, use WebSocket)
+                            this.pollAuditStatus(groupId);
+                        } else {
+                            throw new Error('Failed to start audit');
+                        }
+                    } catch (e) {
+                        this.auditStatus[groupId] = null;
+                        this.addLog('error', `${group?.name || groupId} audit failed`, e.message);
+                    }
+                },
+
+                async pollAuditStatus(groupId) {
+                    // Simple polling - check proposals count increase
+                    // In production, this would use WebSockets or SSE
+                    const checkInterval = setInterval(async () => {
+                        await this.loadProposalsWithProducts();
+                        
+                        // After 30 seconds, mark as completed (simplified)
+                        // In production, backend would report actual completion
+                    }, 3000);
+                    
+                    // Mark as completed after timeout (simplified approach)
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        this.auditStatus[groupId] = 'completed';
+                        const group = this.auditGroups.find(g => g.id === groupId);
+                        this.addLog('success', `✅ ${group?.name || groupId} audit completed`, 'Check Validation tab for proposals');
+                        this.loadProposalsWithProducts();
+                    }, 30000); // 30 second timeout
+                },
+
+                async runAllAuditGroups() {
+                    if (!this.selectedAuditDataset) {
+                        alert('Please select a dataset first');
+                        return;
+                    }
+                    
+                    this.addLog('info', '🔄 Starting full audit', 'Running all optimization groups sequentially...');
+                    this.showLogPanel = true;
+                    
+                    // Run groups in sequence (safe ones first)
+                    const safeGroups = this.auditGroups.filter(g => g.safe);
+                    const testGroups = this.auditGroups.filter(g => !g.safe);
+                    const orderedGroups = [...safeGroups, ...testGroups];
+                    
+                    for (const group of orderedGroups) {
+                        await this.runAuditGroup(group.id);
+                        // Wait a bit between groups to not overload
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                },
+                // ========== END FEED AUDIT FUNCTIONS ==========
+
+                // ========== DATA FEEDS FUNCTIONS ==========
+                async selectFeedDataset(dataset) {
+                    this.selectedFeedDataset = dataset;
+                    this.feedSubTab = 'products';
+                    await this.loadFeedProducts(dataset.id);
+                    await this.loadFeedVersions(dataset.id);
+                    await this.loadFeedSnapshots(dataset.id);
+                },
+
+                async loadFeedProducts(datasetId) {
+                    try {
+                        const res = await fetch(`/api/datasets/${datasetId}/products`);
+                        const data = await res.json();
+                        this.feedProducts = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load feed products:', e);
+                    }
+                },
+
+                async loadFeedVersions(datasetId) {
+                    try {
+                        const res = await fetch(`/api/datasets/${datasetId}/versions`);
+                        const data = await res.json();
+                        this.feedVersions = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load versions:', e);
+                    }
+                },
+
+                async loadFeedSnapshots(datasetId) {
+                    try {
+                        const res = await fetch(`/api/datasets/${datasetId}/snapshots`);
+                        const data = await res.json();
+                        this.feedSnapshots = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load snapshots:', e);
+                    }
+                },
+
+                async loadFeedChangelog(datasetId) {
+                    try {
+                        const res = await fetch(`/api/datasets/${datasetId}/changelog?limit=100`);
+                        const data = await res.json();
+                        this.feedChangelog = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load changelog:', e);
+                    }
+                },
+
+                async createSnapshot() {
+                    if (!this.selectedFeedDataset) return;
+                    const name = prompt('Snapshot name:', `Snapshot ${new Date().toLocaleString()}`);
+                    if (!name) return;
+                    
+                    try {
+                        const res = await fetch(`/api/datasets/${this.selectedFeedDataset.id}/snapshots`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, type: 'manual' })
+                        });
+                        if (res.ok) {
+                            await this.loadFeedSnapshots(this.selectedFeedDataset.id);
+                            this.addLog('success', 'Snapshot created', name);
+                        }
+                    } catch (e) {
+                        this.addLog('error', 'Failed to create snapshot', e.message);
+                    }
+                },
+
+                async deleteSnapshot(snapshotId) {
+                    if (!confirm('Delete this snapshot?')) return;
+                    try {
+                        await fetch(`/api/snapshots/${snapshotId}`, { method: 'DELETE' });
+                        await this.loadFeedSnapshots(this.selectedFeedDataset.id);
+                    } catch (e) {
+                        this.addLog('error', 'Failed to delete snapshot', e.message);
+                    }
+                },
+                // ========== END DATA FEEDS FUNCTIONS ==========
+
+                // ========== EXECUTION FUNCTIONS ==========
+                async loadJobs() {
+                    try {
+                        const res = await fetch('/api/jobs?limit=50');
+                        const data = await res.json();
+                        this.jobs = data.data || [];
+                        this.activeJobs = this.jobs.filter(j => j.status === 'running' || j.status === 'pending');
+                        this.completedJobs = this.jobs.filter(j => j.status === 'completed' || j.status === 'failed').slice(0, 20);
+                    } catch (e) {
+                        console.error('Failed to load jobs:', e);
+                    }
+                },
+
+                toggleJobLogs(jobId) {
+                    this.expandedJobLogs[jobId] = !this.expandedJobLogs[jobId];
+                },
+
+                getJobProgress(job) {
+                    if (!job.total_items || job.total_items === 0) return 0;
+                    return Math.round((job.processed_items / job.total_items) * 100);
+                },
+
+                getJobDuration(job) {
+                    if (!job.started_at) return '-';
+                    const start = new Date(job.started_at);
+                    const end = job.completed_at ? new Date(job.completed_at) : new Date();
+                    const diff = Math.floor((end - start) / 1000);
+                    if (diff < 60) return `${diff}s`;
+                    return `${Math.floor(diff / 60)}m ${diff % 60}s`;
+                },
+                // ========== END EXECUTION FUNCTIONS ==========
+
+                // ========== APPROVAL RULES FUNCTIONS ==========
+                async loadApprovalRules() {
+                    try {
+                        const res = await fetch('/api/approval-rules');
+                        const data = await res.json();
+                        this.approvalRules = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load approval rules:', e);
+                    }
+                },
+
+                async createApprovalRule() {
+                    if (!this.newRule.name) {
+                        alert('Please enter a rule name');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/approval-rules', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.newRule)
+                        });
+                        if (res.ok) {
+                            await this.loadApprovalRules();
+                            this.newRule = { name: '', field: '', module: '', min_confidence: 0.9, max_risk: 'low', action: 'auto_approve' };
+                            this.addLog('success', 'Rule created', this.newRule.name);
+                        }
+                    } catch (e) {
+                        this.addLog('error', 'Failed to create rule', e.message);
+                    }
+                },
+
+                async toggleRuleActive(rule) {
+                    try {
+                        await fetch(`/api/approval-rules/${rule.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ...rule, active: !rule.active })
+                        });
+                        await this.loadApprovalRules();
+                    } catch (e) {
+                        this.addLog('error', 'Failed to update rule', e.message);
+                    }
+                },
+
+                async deleteApprovalRule(ruleId) {
+                    if (!confirm('Delete this rule?')) return;
+                    try {
+                        await fetch(`/api/approval-rules/${ruleId}`, { method: 'DELETE' });
+                        await this.loadApprovalRules();
+                    } catch (e) {
+                        this.addLog('error', 'Failed to delete rule', e.message);
+                    }
+                },
+
+                async applyApprovalRules() {
+                    try {
+                        const res = await fetch('/api/proposals/apply-rules', { method: 'POST' });
+                        const data = await res.json();
+                        this.addLog('success', 'Rules applied', `${data.affected} proposals processed`);
+                        await this.loadProposalsWithProducts();
+                        await this.loadProposalsByModule();
+                    } catch (e) {
+                        this.addLog('error', 'Failed to apply rules', e.message);
+                    }
+                },
+                // ========== END APPROVAL RULES FUNCTIONS ==========
+
+                // ========== PROPOSALS BY MODULE FUNCTIONS ==========
+                async loadProposalsByModule() {
+                    try {
+                        const res = await fetch('/api/proposals/by-module');
+                        const data = await res.json();
+                        this.proposalsByModule = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load proposals by module:', e);
+                    }
+                },
+
+                async selectModule(module) {
+                    this.selectedModule = module;
+                    await this.loadModuleProposals(module);
+                },
+
+                async loadModuleProposals(module) {
+                    try {
+                        const url = module === 'all' 
+                            ? '/api/proposals/module?status=proposed&limit=100'
+                            : `/api/proposals/module?module=${module}&status=proposed&limit=100`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        this.moduleProposals = data.data || [];
+                    } catch (e) {
+                        console.error('Failed to load module proposals:', e);
+                    }
+                },
+
+                toggleProposalExpand(proposalId) {
+                    this.expandedProposals[proposalId] = !this.expandedProposals[proposalId];
+                },
+
+                getTotalPendingByModule() {
+                    return this.proposalsByModule.reduce((sum, m) => sum + m.pending, 0);
+                },
+                // ========== END PROPOSALS BY MODULE FUNCTIONS ==========
 
                 async viewDataset(id) {
                     this.selectedDataset = id;

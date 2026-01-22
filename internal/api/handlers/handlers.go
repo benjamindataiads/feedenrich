@@ -497,6 +497,144 @@ func (h *Handlers) EnrichDataset(c echo.Context) error {
 	return c.JSON(http.StatusAccepted, job)
 }
 
+// GetAuditGroups returns available optimization groups
+func (h *Handlers) GetAuditGroups(c echo.Context) error {
+	groups := agent.GetAllGroups()
+	return c.JSON(http.StatusOK, map[string]any{"groups": groups})
+}
+
+// AuditDataset runs a specific optimization group on all products
+func (h *Handlers) AuditDataset(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid dataset ID")
+	}
+
+	var req struct {
+		Group string `json:"group"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	// Validate group
+	validGroup := false
+	for _, g := range agent.GetAllGroups() {
+		if string(g.ID) == req.Group {
+			validGroup = true
+			break
+		}
+	}
+	if !validGroup {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid optimization group")
+	}
+
+	// Get products for this dataset
+	products, err := h.queries.ListProductsByDataset(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list products")
+	}
+
+	group := agent.OptimizationGroup(req.Group)
+	
+	// Create job record for tracking
+	job := models.JobWithDetails{
+		Job: models.Job{
+			ID:        uuid.New(),
+			DatasetID: id,
+			Type:      "audit",
+			Status:    "pending",
+			CreatedAt: time.Now(),
+		},
+		Module:     string(group),
+		TotalItems: len(products),
+		Logs:       []models.JobLog{},
+	}
+	
+	if err := h.queries.CreateJobWithDetails(c.Request().Context(), job); err != nil {
+		fmt.Printf("Failed to create job record: %v\n", err)
+	}
+
+	// Process products in background
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		
+		// Update job status to running
+		h.queries.UpdateJobStatus(ctx, job.ID, "running", nil)
+		h.queries.UpdateJobProgress(ctx, job.ID, 0, 0, &models.JobLog{
+			Timestamp: time.Now(),
+			Level:     "info",
+			Message:   fmt.Sprintf("Starting %s audit for %d products", group, len(products)),
+		})
+		
+		fmt.Printf("Starting audit group %s for dataset %s (%d products)\n", group, id, len(products))
+		
+		processedCount := 0
+		proposalCount := 0
+		errorCount := 0
+		
+		for i := range products {
+			session, err := h.agent.RunWithGroup(ctx, &products[i], "Audit: "+string(group), group)
+			if err != nil {
+				fmt.Printf("Audit error for product %s: %v\n", products[i].ID, err)
+				errorCount++
+				h.queries.UpdateJobProgress(ctx, job.ID, processedCount+1, proposalCount, &models.JobLog{
+					Timestamp: time.Now(),
+					Level:     "error",
+					Message:   fmt.Sprintf("Error processing %s: %v", products[i].ExternalID, err),
+				})
+				continue
+			}
+			
+			processedCount++
+			proposalCount += len(session.Proposals)
+			
+			// Save proposals to DB with module tag
+			for _, prop := range session.Proposals {
+				if err := h.queries.CreateProposal(ctx, prop); err != nil {
+					fmt.Printf("Failed to save proposal: %v\n", err)
+				}
+			}
+			
+			// Update job progress every product
+			logMsg := fmt.Sprintf("Processed %s: %d proposals", products[i].ExternalID, len(session.Proposals))
+			h.queries.UpdateJobProgress(ctx, job.ID, processedCount, proposalCount, &models.JobLog{
+				Timestamp: time.Now(),
+				Level:     "success",
+				Message:   logMsg,
+			})
+			
+			fmt.Printf("Audit %s: product %d/%d - %d proposals\n", group, processedCount, len(products), len(session.Proposals))
+		}
+		
+		// Mark job as completed
+		h.queries.UpdateJobProgress(ctx, job.ID, processedCount, proposalCount, &models.JobLog{
+			Timestamp: time.Now(),
+			Level:     "info",
+			Message:   fmt.Sprintf("Completed: %d products, %d proposals, %d errors", processedCount, proposalCount, errorCount),
+		})
+		
+		if errorCount > 0 && errorCount == len(products) {
+			errMsg := fmt.Sprintf("All %d products failed", errorCount)
+			h.queries.UpdateJobStatus(ctx, job.ID, "failed", &errMsg)
+		} else {
+			h.queries.UpdateJobStatus(ctx, job.ID, "completed", nil)
+		}
+		
+		fmt.Printf("Audit %s completed: %d/%d products, %d proposals, %d errors\n", 
+			group, processedCount, len(products), proposalCount, errorCount)
+	}()
+
+	return c.JSON(http.StatusAccepted, map[string]any{
+		"status":         "started",
+		"job_id":         job.ID,
+		"group":          group,
+		"total_products": len(products),
+		"message":        fmt.Sprintf("Started %s audit for %d products", group, len(products)),
+	})
+}
+
 // GetAgentSession returns an agent session
 func (h *Handlers) GetAgentSession(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
@@ -798,4 +936,297 @@ func (h *Handlers) GetTokenUsageStats(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, stats)
+}
+
+// ===== DATA FEEDS HANDLERS =====
+
+// ListDatasetVersions returns version history for a dataset
+func (h *Handlers) ListDatasetVersions(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid dataset ID")
+	}
+
+	versions, err := h.queries.ListDatasetVersions(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list versions")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": versions})
+}
+
+// CreateSnapshot creates a snapshot of current dataset state
+func (h *Handlers) CreateSnapshot(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid dataset ID")
+	}
+
+	var req struct {
+		Name string `json:"name"`
+		Type string `json:"type"` // pre_enrichment, post_enrichment, manual
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+	if req.Name == "" {
+		req.Name = fmt.Sprintf("Snapshot %s", time.Now().Format("2006-01-02 15:04"))
+	}
+	if req.Type == "" {
+		req.Type = "manual"
+	}
+
+	// Get all products for this dataset
+	products, err := h.queries.ListProductsByDataset(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get products")
+	}
+
+	snapshot := models.DatasetSnapshot{
+		ID:           uuid.New(),
+		DatasetID:    id,
+		Name:         req.Name,
+		SnapshotType: req.Type,
+		ProductCount: len(products),
+		CreatedAt:    time.Now(),
+	}
+
+	if err := h.queries.CreateSnapshot(c.Request().Context(), snapshot); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create snapshot")
+	}
+
+	if err := h.queries.CreateSnapshotProducts(c.Request().Context(), snapshot.ID, products); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save snapshot products")
+	}
+
+	return c.JSON(http.StatusCreated, snapshot)
+}
+
+// ListSnapshots returns snapshots for a dataset
+func (h *Handlers) ListSnapshots(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid dataset ID")
+	}
+
+	snapshots, err := h.queries.ListSnapshots(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list snapshots")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": snapshots})
+}
+
+// DeleteSnapshot deletes a snapshot
+func (h *Handlers) DeleteSnapshot(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid snapshot ID")
+	}
+
+	if err := h.queries.DeleteSnapshot(c.Request().Context(), id); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete snapshot")
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// GetChangeLog returns change history for a dataset
+func (h *Handlers) GetChangeLog(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid dataset ID")
+	}
+
+	limit := 100
+	if l := c.QueryParam("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+
+	entries, err := h.queries.GetChangeLog(c.Request().Context(), id, limit)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get change log")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": entries})
+}
+
+// ===== JOB HANDLERS =====
+
+// ListJobs returns jobs with optional filters
+func (h *Handlers) ListJobs(c echo.Context) error {
+	var datasetID *uuid.UUID
+	if dsID := c.QueryParam("dataset_id"); dsID != "" {
+		id, err := uuid.Parse(dsID)
+		if err == nil {
+			datasetID = &id
+		}
+	}
+
+	status := c.QueryParam("status")
+	limit := 50
+	if l := c.QueryParam("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+
+	jobs, err := h.queries.ListJobs(c.Request().Context(), datasetID, status, limit)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list jobs")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": jobs})
+}
+
+// GetJobDetails returns details for a single job
+func (h *Handlers) GetJobDetails(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid job ID")
+	}
+
+	job, err := h.queries.GetJob(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Job not found")
+	}
+
+	return c.JSON(http.StatusOK, job)
+}
+
+// ===== APPROVAL RULES HANDLERS =====
+
+// ListApprovalRules returns approval rules
+func (h *Handlers) ListApprovalRules(c echo.Context) error {
+	var datasetID *uuid.UUID
+	if dsID := c.QueryParam("dataset_id"); dsID != "" {
+		id, err := uuid.Parse(dsID)
+		if err == nil {
+			datasetID = &id
+		}
+	}
+
+	rules, err := h.queries.ListApprovalRules(c.Request().Context(), datasetID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list rules")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": rules})
+}
+
+// CreateApprovalRule creates a new approval rule
+func (h *Handlers) CreateApprovalRule(c echo.Context) error {
+	var req models.ApprovalRule
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+
+	req.ID = uuid.New()
+	req.CreatedAt = time.Now()
+	req.Active = true
+
+	if err := h.queries.CreateApprovalRule(c.Request().Context(), req); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create rule")
+	}
+
+	return c.JSON(http.StatusCreated, req)
+}
+
+// UpdateApprovalRule updates an existing rule
+func (h *Handlers) UpdateApprovalRule(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid rule ID")
+	}
+
+	var req models.ApprovalRule
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	}
+	req.ID = id
+
+	if err := h.queries.UpdateApprovalRule(c.Request().Context(), req); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update rule")
+	}
+
+	return c.JSON(http.StatusOK, req)
+}
+
+// DeleteApprovalRule deletes a rule
+func (h *Handlers) DeleteApprovalRule(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid rule ID")
+	}
+
+	if err := h.queries.DeleteApprovalRule(c.Request().Context(), id); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete rule")
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// ApplyApprovalRules applies all active rules to pending proposals
+func (h *Handlers) ApplyApprovalRules(c echo.Context) error {
+	var datasetID *uuid.UUID
+	if dsID := c.QueryParam("dataset_id"); dsID != "" {
+		id, err := uuid.Parse(dsID)
+		if err == nil {
+			datasetID = &id
+		}
+	}
+
+	affected, err := h.queries.ApplyApprovalRules(c.Request().Context(), datasetID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to apply rules")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"affected": affected,
+		"message":  fmt.Sprintf("Applied rules to %d proposals", affected),
+	})
+}
+
+// ===== PROPOSALS BY MODULE =====
+
+// GetProposalsByModule returns proposals grouped by module
+func (h *Handlers) GetProposalsByModule(c echo.Context) error {
+	var datasetID *uuid.UUID
+	if dsID := c.QueryParam("dataset_id"); dsID != "" {
+		id, err := uuid.Parse(dsID)
+		if err == nil {
+			datasetID = &id
+		}
+	}
+
+	groups, err := h.queries.GetProposalsByModule(c.Request().Context(), datasetID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get proposals by module")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": groups})
+}
+
+// ListProposalsByModuleFiltered returns proposals for a specific module
+func (h *Handlers) ListProposalsByModuleFiltered(c echo.Context) error {
+	module := c.QueryParam("module")
+	status := c.QueryParam("status")
+	
+	var datasetID *uuid.UUID
+	if dsID := c.QueryParam("dataset_id"); dsID != "" {
+		id, err := uuid.Parse(dsID)
+		if err == nil {
+			datasetID = &id
+		}
+	}
+
+	limit := 100
+	if l := c.QueryParam("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+
+	proposals, err := h.queries.ListProposalsByModule(c.Request().Context(), module, datasetID, status, limit)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to list proposals")
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"data": proposals})
 }
