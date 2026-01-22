@@ -1708,17 +1708,74 @@
                         <template x-for="prop in productProposals" :key="prop.id">
                             <div class="bg-gray-800/50 rounded-lg p-3 border"
                                  :class="prop.status === 'accepted' ? 'border-green-500/50' : prop.status === 'rejected' ? 'border-red-500/50' : 'border-yellow-500/50'">
+                                <!-- Header: Field + Confidence + Risk -->
                                 <div class="flex justify-between items-start mb-2">
-                                    <span class="font-bold text-white" x-text="prop.field"></span>
-                                    <span class="text-xs" x-text="(prop.confidence * 100).toFixed(0) + '%'"></span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-white" x-text="prop.field"></span>
+                                        <span class="text-xs px-1.5 py-0.5 rounded"
+                                              :class="{
+                                                'bg-green-500/20 text-green-400': prop.risk_level === 'low',
+                                                'bg-yellow-500/20 text-yellow-400': prop.risk_level === 'medium',
+                                                'bg-red-500/20 text-red-400': prop.risk_level === 'high'
+                                              }"
+                                              x-text="prop.risk_level"></span>
+                                    </div>
+                                    <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400" 
+                                          x-text="(prop.confidence * 100).toFixed(0) + '% conf'"></span>
                                 </div>
-                                <div class="space-y-1 text-sm">
-                                    <div class="diff-remove px-2 py-1 rounded" x-text="prop.before_value || '(empty)'"></div>
-                                    <div class="diff-add px-2 py-1 rounded" x-text="prop.after_value"></div>
+                                
+                                <!-- Before / After -->
+                                <div class="space-y-1 text-sm mb-3">
+                                    <div class="diff-remove px-2 py-1 rounded text-xs" x-text="prop.before_value || '(empty)'"></div>
+                                    <div class="diff-add px-2 py-1 rounded text-xs" x-text="prop.after_value"></div>
                                 </div>
-                                <div class="mt-2 flex gap-2" x-show="prop.status === 'proposed'">
-                                    <button @click="updateProposal(prop.id, 'accept')" class="flex-1 text-xs bg-green-600 text-white py-1 rounded">✓ Accept</button>
-                                    <button @click="updateProposal(prop.id, 'reject')" class="flex-1 text-xs bg-red-600 text-white py-1 rounded">✗ Reject</button>
+                                
+                                <!-- Rationale -->
+                                <div class="bg-gray-900/50 rounded p-2 mb-2" x-show="prop.rationale && prop.rationale.length > 0">
+                                    <div class="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                        <span>💡</span> Rationale
+                                    </div>
+                                    <div class="text-xs text-gray-300">
+                                        <template x-if="Array.isArray(prop.rationale)">
+                                            <span x-text="prop.rationale.join('. ')"></span>
+                                        </template>
+                                        <template x-if="!Array.isArray(prop.rationale) && prop.rationale">
+                                            <span x-text="prop.rationale"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sources -->
+                                <div class="bg-gray-900/50 rounded p-2 mb-2" x-show="prop.sources && parseSources(prop.sources).length > 0">
+                                    <div class="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                        <span>📎</span> Sources
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <template x-for="src in parseSources(prop.sources)" :key="src.type + src.reference">
+                                            <span class="text-xs px-1.5 py-0.5 rounded"
+                                                  :class="{
+                                                    'bg-blue-500/20 text-blue-300': src.type === 'feed',
+                                                    'bg-purple-500/20 text-purple-300': src.type === 'image',
+                                                    'bg-cyan-500/20 text-cyan-300': src.type === 'web',
+                                                    'bg-gray-500/20 text-gray-300': !['feed', 'image', 'web'].includes(src.type)
+                                                  }">
+                                                <span x-text="getSourceIcon(src.type)"></span>
+                                                <span x-text="src.type"></span>
+                                                <span x-show="src.confidence" class="opacity-60" x-text="' (' + (src.confidence * 100).toFixed(0) + '%)'"></span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="flex gap-2" x-show="prop.status === 'proposed'">
+                                    <button @click="updateProposal(prop.id, 'accept')" class="flex-1 text-xs bg-green-600 text-white py-1.5 rounded hover:bg-green-700">✓ Accept</button>
+                                    <button @click="updateProposal(prop.id, 'reject')" class="flex-1 text-xs bg-red-600 text-white py-1.5 rounded hover:bg-red-700">✗ Reject</button>
+                                </div>
+                                <div x-show="prop.status !== 'proposed'" class="text-center">
+                                    <span class="text-xs px-3 py-1 rounded"
+                                          :class="prop.status === 'accepted' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+                                          x-text="prop.status === 'accepted' ? '✓ Accepted' : '✗ Rejected'"></span>
                                 </div>
                             </div>
                         </template>
@@ -2629,6 +2686,19 @@
                     if (!sources) return [];
                     if (Array.isArray(sources)) return sources;
                     try { return JSON.parse(sources); } catch { return []; }
+                },
+
+                getSourceIcon(type) {
+                    const icons = {
+                        'feed': '📄',
+                        'image': '👁️',
+                        'web': '🌐',
+                        'inferred': '🧠',
+                        'product_page': '🔗',
+                        'manufacturer': '🏭',
+                        'web_search': '🔍'
+                    };
+                    return icons[type] || '📎';
                 },
 
                 // Dashboard score calculations
