@@ -3055,7 +3055,6 @@
                     const group = this.auditGroups.find(g => g.id === groupId);
                     this.auditStatus[groupId] = 'running';
                     this.addLog('info', `🔍 Starting ${group?.name || groupId} audit`, `Processing all products...`);
-                    this.showLogPanel = true; // Show log panel to track progress
                     
                     try {
                         const res = await fetch(`/api/datasets/${this.selectedAuditDataset}/audit`, {
@@ -3068,8 +3067,14 @@
                             const data = await res.json();
                             this.addLog('success', `${group?.name || groupId} audit started`, `Processing ${data.total_products} products...`);
                             
-                            // Poll for completion (in real app, use WebSocket)
-                            this.pollAuditStatus(groupId);
+                            // Refresh jobs immediately and switch to Execution tab
+                            await this.loadJobs();
+                            this.currentTab = 'execution';
+                            
+                            // Poll for completion using actual job status
+                            if (data.job_id) {
+                                this.pollJobStatus(data.job_id, groupId);
+                            }
                         } else {
                             throw new Error('Failed to start audit');
                         }
@@ -3079,24 +3084,37 @@
                     }
                 },
 
-                async pollAuditStatus(groupId) {
-                    // Simple polling - check proposals count increase
-                    // In production, this would use WebSockets or SSE
+                async pollJobStatus(jobId, groupId) {
+                    // Poll actual job status from backend
                     const checkInterval = setInterval(async () => {
-                        await this.loadProposalsWithProducts();
+                        await this.loadJobs();
                         
-                        // After 30 seconds, mark as completed (simplified)
-                        // In production, backend would report actual completion
-                    }, 3000);
+                        // Find the job and check its status
+                        const job = this.jobs.find(j => j.id === jobId);
+                        if (job && (job.status === 'completed' || job.status === 'failed')) {
+                            clearInterval(checkInterval);
+                            this.auditStatus[groupId] = job.status === 'completed' ? 'completed' : null;
+                            
+                            const group = this.auditGroups.find(g => g.id === groupId);
+                            if (job.status === 'completed') {
+                                this.addLog('success', `✅ ${group?.name || groupId} audit completed`, 
+                                    `${job.processed_items} products processed, ${job.proposals_generated} proposals`);
+                            } else {
+                                this.addLog('error', `❌ ${group?.name || groupId} audit failed`, job.error || 'Unknown error');
+                            }
+                            
+                            await this.loadProposalsWithProducts();
+                            await this.loadProposalsByModule();
+                        }
+                    }, 2000); // Poll every 2 seconds
                     
-                    // Mark as completed after timeout (simplified approach)
+                    // Safety timeout after 10 minutes
                     setTimeout(() => {
                         clearInterval(checkInterval);
-                        this.auditStatus[groupId] = 'completed';
-                        const group = this.auditGroups.find(g => g.id === groupId);
-                        this.addLog('success', `✅ ${group?.name || groupId} audit completed`, 'Check Validation tab for proposals');
-                        this.loadProposalsWithProducts();
-                    }, 30000); // 30 second timeout
+                        if (this.auditStatus[groupId] === 'running') {
+                            this.auditStatus[groupId] = 'completed';
+                        }
+                    }, 600000);
                 },
 
                 async runAllAuditGroups() {
