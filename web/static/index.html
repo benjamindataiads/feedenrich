@@ -3471,69 +3471,57 @@
                 async enrichAllProducts(datasetId) {
                     if (!datasetId) return;
                     
-                    this.globalEnriching = true;
-                    this.enrichProgress = 0;
-                    const startProposals = this.proposals.length;
-                    
-                    this.addLog('info', '🚀 Global enrichment started', `Processing all products in dataset`);
-                    
-                    // Load products if not loaded
-                    if (!this.products.length || this.selectedDataset !== datasetId) {
-                        await this.viewDataset(datasetId);
+                    // Load audit groups if not loaded
+                    if (this.auditGroups.length === 0) {
+                        await this.loadAuditGroups();
                     }
                     
-                    const pendingProducts = this.products.filter(p => p.status !== 'enriched');
-                    const total = pendingProducts.length;
+                    this.globalEnriching = true;
+                    this.addLog('info', '🚀 Full Enrichment Started', `Launching all optimization groups...`);
                     
-                    this.addLog('info', 'Products to process', `${total} products pending enrichment`);
+                    // Switch to Execution tab to show progress
+                    this.currentTab = 'execution';
                     
-                    // Process ALL products (no limit)
-                    for (let i = 0; i < total; i++) {
-                        const product = pendingProducts[i];
-                        this.currentEnrichingProduct = product.id;
-                        this.currentOperation = `Processing ${i + 1}/${total}: ${product.external_id}`;
-                        this.enrichProgress = ((i + 1) / total) * 100;
+                    // Set this as the selected audit dataset
+                    this.selectedAuditDataset = datasetId;
+                    
+                    // Launch all groups sequentially (safe ones first)
+                    const safeGroups = this.auditGroups.filter(g => g.safe);
+                    const testGroups = this.auditGroups.filter(g => !g.safe);
+                    const orderedGroups = [...safeGroups, ...testGroups];
+                    
+                    for (const group of orderedGroups) {
+                        this.addLog('info', `🔍 Launching ${group.name}`, 'Starting optimization group...');
                         
-                        this.addLog('step', `Product ${i + 1}/${total}`, product.external_id);
-                        
-                        await fetch(`/api/products/${product.id}/enrich`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ goal: 'GMC compliance + agent readiness' })
-                        });
-                        
-                        this.agentStats.productsProcessed++;
-                        this.agentStats.toolsUsed += 4;
-                        
-                        // Refresh proposals and stats periodically to show progress
-                        if (i % 5 === 4) {
-                            await this.loadProposals();
-                            await this.loadDatasetStats(datasetId);
-                            const newProposals = this.proposals.length - startProposals;
-                            const stats = this.datasetStats[datasetId];
-                            const scoreAfter = stats?.scores?.after || 0;
-                            this.addLog('info', '📊 Progress update', 
-                                `${newProposals} new proposals | Quality: ${(scoreAfter * 100).toFixed(0)}%`);
+                        try {
+                            const res = await fetch(`/api/datasets/${datasetId}/audit`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ group: group.id })
+                            });
+                            
+                            if (res.ok) {
+                                const data = await res.json();
+                                this.auditStatus[group.id] = 'running';
+                                
+                                // Start polling for this job
+                                if (data.job_id) {
+                                    this.pollJobStatus(data.job_id, group.id);
+                                }
+                                
+                                // Refresh jobs list
+                                await this.loadJobs();
+                            }
+                        } catch (e) {
+                            this.addLog('error', `Failed to start ${group.name}`, e.message);
                         }
                         
-                        // Wait between products to avoid overwhelming the API
-                        await new Promise(r => setTimeout(r, 2000));
+                        // Wait a bit between launching groups
+                        await new Promise(r => setTimeout(r, 1000));
                     }
                     
-                    // Wait for last batch to complete
-                    await new Promise(r => setTimeout(r, 5000));
-                    await this.loadProposals();
-                    await this.refreshProducts();
-                    
-                    const totalNewProposals = this.proposals.length - startProposals;
-                    
+                    this.addLog('success', '✅ All groups launched', `${orderedGroups.length} optimization groups running. Check progress above.`);
                     this.globalEnriching = false;
-                    this.currentEnrichingProduct = null;
-                    this.currentOperation = null;
-                    this.agentStats.proposalsGenerated = this.proposals.length;
-                    
-                    this.addLog('success', '✅ Global enrichment complete', 
-                        `Processed ${total} products, generated ${totalNewProposals} new proposals (${this.proposals.length} total)`);
                 },
 
                 async updateProposal(id, action) {
