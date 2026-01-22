@@ -82,8 +82,8 @@ func (t *WebSearchTool) Execute(ctx context.Context, input json.RawMessage, sess
 		numResults = 5
 	}
 
-	// Use Serper API for search
-	results, err := t.searchWithSerper(ctx, query, numResults)
+	// Use Brave Search API
+	results, err := t.searchWithBrave(ctx, query, numResults)
 	if err != nil {
 		return nil, err
 	}
@@ -91,51 +91,61 @@ func (t *WebSearchTool) Execute(ctx context.Context, input json.RawMessage, sess
 	return WebSearchOutput{Results: results}, nil
 }
 
-func (t *WebSearchTool) searchWithSerper(ctx context.Context, query string, numResults int) ([]SearchResult, error) {
+func (t *WebSearchTool) searchWithBrave(ctx context.Context, query string, numResults int) ([]SearchResult, error) {
 	if t.config.WebSearch.APIKey == "" {
 		// Fallback: return empty results if no API key
 		return []SearchResult{}, nil
 	}
 
-	reqBody := fmt.Sprintf(`{"q": %q, "num": %d}`, query, numResults)
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://google.serper.dev/search", strings.NewReader(reqBody))
+	// Brave Search API
+	searchURL := fmt.Sprintf("https://api.search.brave.com/res/v1/web/search?q=%s&count=%d&extra_snippets=true",
+		url.QueryEscape(query), numResults)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("X-API-KEY", t.config.WebSearch.APIKey)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Subscription-Token", t.config.WebSearch.APIKey)
+	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("serper request: %w", err)
+		return nil, fmt.Errorf("brave search request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("serper error %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("brave search error %d: %s", resp.StatusCode, string(body))
 	}
 
-	var serperResp struct {
-		Organic []struct {
-			Title   string `json:"title"`
-			Link    string `json:"link"`
-			Snippet string `json:"snippet"`
-		} `json:"organic"`
+	var braveResp struct {
+		Web struct {
+			Results []struct {
+				Title         string   `json:"title"`
+				URL           string   `json:"url"`
+				Description   string   `json:"description"`
+				ExtraSnippets []string `json:"extra_snippets,omitempty"`
+			} `json:"results"`
+		} `json:"web"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&serperResp); err != nil {
-		return nil, fmt.Errorf("parse serper response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&braveResp); err != nil {
+		return nil, fmt.Errorf("parse brave response: %w", err)
 	}
 
 	var results []SearchResult
-	for _, r := range serperResp.Organic {
+	for _, r := range braveResp.Web.Results {
+		snippet := r.Description
+		if len(r.ExtraSnippets) > 0 {
+			snippet += " " + strings.Join(r.ExtraSnippets, " ")
+		}
 		results = append(results, SearchResult{
 			Title:   r.Title,
-			URL:     r.Link,
-			Snippet: r.Snippet,
+			URL:     r.URL,
+			Snippet: snippet,
 		})
 	}
 

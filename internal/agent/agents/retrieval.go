@@ -246,36 +246,125 @@ Return ONLY the JSON with facts found. Empty array if nothing found.`, string(fi
 }
 
 type searchResult struct {
-	URL   string
-	Title string
+	URL     string
+	Title   string
+	Snippet string
 }
 
 func (a *KnowledgeRetrievalAgent) webSearch(ctx context.Context, query string) ([]searchResult, error) {
-	// For MVP, we'll use a simple approach
-	// In production, this would use a proper search API (Google Custom Search, Bing, etc.)
-	// For now, return empty - web search requires API keys
-	return []searchResult{}, nil
+	// Check if web search is enabled and API key is set
+	if a.config.WebSearch.APIKey == "" {
+		return []searchResult{}, nil
+	}
+
+	// Use Brave Search API
+	searchURL := fmt.Sprintf("https://api.search.brave.com/res/v1/web/search?q=%s&count=5&extra_snippets=true", 
+		url.QueryEscape(query))
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-Subscription-Token", a.config.WebSearch.APIKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("brave search request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("brave search error %d: %s", resp.StatusCode, string(body))
+	}
+
+	var braveResp struct {
+		Web struct {
+			Results []struct {
+				Title       string `json:"title"`
+				URL         string `json:"url"`
+				Description string `json:"description"`
+				ExtraSnippets []string `json:"extra_snippets,omitempty"`
+			} `json:"results"`
+		} `json:"web"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&braveResp); err != nil {
+		return nil, fmt.Errorf("parse brave response: %w", err)
+	}
+
+	var results []searchResult
+	for _, r := range braveResp.Web.Results {
+		snippet := r.Description
+		// Include extra snippets for more context
+		if len(r.ExtraSnippets) > 0 {
+			snippet += " | " + strings.Join(r.ExtraSnippets, " | ")
+		}
+		results = append(results, searchResult{
+			URL:     r.URL,
+			Title:   r.Title,
+			Snippet: snippet,
+		})
+	}
+
+	return results, nil
 }
 
+// buildSearchQuery creates optimized search queries for product information
 func (a *KnowledgeRetrievalAgent) buildSearchQuery(input RetrievalInput, fields []string) string {
-	var parts []string
+	var queryParts []string
 
+	// Priority 1: GTIN/EAN search (most precise identifier)
+	if input.GTIN != "" {
+		// Quote GTIN for exact match
+		queryParts = append(queryParts, fmt.Sprintf(`"%s"`, input.GTIN))
+	}
+
+	// Priority 2: Brand + Product name
 	if input.Brand != "" {
-		parts = append(parts, input.Brand)
+		queryParts = append(queryParts, input.Brand)
 	}
 	if input.ProductTitle != "" {
-		parts = append(parts, input.ProductTitle)
-	}
-	if input.GTIN != "" {
-		parts = append(parts, input.GTIN)
+		// Clean title - take first meaningful part
+		title := input.ProductTitle
+		if len(title) > 50 {
+			title = title[:50]
+		}
+		queryParts = append(queryParts, title)
 	}
 
-	// Add field keywords
+	// Priority 3: MPN if available
+	if input.MPN != "" {
+		queryParts = append(queryParts, input.MPN)
+	}
+
+	// Add specification keywords for the fields we need
 	if len(fields) > 0 {
-		parts = append(parts, "specifications")
+		queryParts = append(queryParts, "specifications")
+		// Add specific field names
+		for _, f := range fields {
+			if f == "material" || f == "color" || f == "dimensions" || f == "weight" {
+				queryParts = append(queryParts, f)
+			}
+		}
 	}
 
-	return url.QueryEscape(strings.Join(parts, " "))
+	return strings.Join(queryParts, " ")
+}
+
+// SearchByGTIN searches specifically by GTIN/EAN for high-confidence results
+func (a *KnowledgeRetrievalAgent) SearchByGTIN(ctx context.Context, gtin string) ([]searchResult, error) {
+	// GTIN search with exact match - high confidence source
+	query := fmt.Sprintf(`"%s" product`, gtin)
+	return a.webSearch(ctx, query)
+}
+
+// SearchByBrandProduct searches by brand and product name
+func (a *KnowledgeRetrievalAgent) SearchByBrandProduct(ctx context.Context, brand, product string) ([]searchResult, error) {
+	query := fmt.Sprintf(`%s "%s" specifications`, brand, product)
+	return a.webSearch(ctx, query)
 }
 
 func min(a, b int) int {

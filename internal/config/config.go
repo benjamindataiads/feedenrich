@@ -40,8 +40,8 @@ type Config struct {
 	}
 
 	WebSearch struct {
-		Provider string `default:"serper" envconfig:"WEBSEARCH_PROVIDER"` // serper, serpapi
-		APIKey   string `envconfig:"SERPER_API_KEY"`
+		Provider string `default:"brave" envconfig:"WEBSEARCH_PROVIDER"` // brave
+		APIKey   string `envconfig:"BRAVE_API_KEY"`
 	}
 }
 
