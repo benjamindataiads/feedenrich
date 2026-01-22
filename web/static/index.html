@@ -1421,30 +1421,122 @@
             <div class="p-4 border-b border-gray-700 bg-gradient-to-r from-blue-600 to-purple-600">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-white flex items-center gap-2">
-                        🔄 Pipeline Activity
+                        🤖 Agent Pipeline
                         <span x-show="globalEnriching || currentEnrichingProduct" class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                     </h3>
                     <button @click="clearLogs" class="text-white/70 hover:text-white text-sm">Clear</button>
                 </div>
-                <p class="text-blue-100 text-sm mt-1">6-Agent Pipeline • Evidence-Based • Human-Gated</p>
             </div>
 
-            <!-- Fast Pipeline Indicator -->
-            <div class="p-3 bg-gray-900/50 border-b border-gray-700">
-                <div class="flex items-center justify-between text-xs">
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-green-400' : 'text-gray-500'">
-                        <span>⚡</span><span>Analyze</span>
+            <!-- Agent Pipeline Steps -->
+            <div class="p-3 bg-gray-900/50 border-b border-gray-700 space-y-2">
+                <!-- Step 1: Validator -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 1 ? 'bg-gray-600 text-white' : 'bg-gray-700/50 text-gray-500'">✓</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-gray-300' : 'text-gray-500'">
+                        <span class="font-medium">Validator</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-gray-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-white">Hard Rules Check</strong><br>
+                                Deterministic validation: required fields, URL format, forbidden words. No AI.
+                            </span>
+                        </span>
                     </div>
-                    <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-purple-400' : 'text-gray-500'">
-                        <span>👁️</span><span>Image + Data</span>
-                    </div>
-                    <span class="text-gray-600">→</span>
-                    <div class="flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-green-400' : 'text-gray-500'">
-                        <span>✅</span><span>Proposals</span>
-                    </div>
+                    <span class="text-gray-500 text-xs" x-show="pipelineStage >= 1">PASS/FAIL</span>
                 </div>
-                <div class="text-center text-xs text-gray-500 mt-1">Fast Mode: 1-2 API calls</div>
+
+                <!-- Step 2: Auditor -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-500'">⚖️</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-blue-400' : 'text-gray-500'">
+                        <span class="font-medium">Auditor</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-blue-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-blue-400">JUDGE ONLY</strong><br>
+                                Scores quality, identifies violations & weak fields. Never suggests fixes.
+                            </span>
+                        </span>
+                    </div>
+                    <span class="text-blue-400 text-xs" x-show="pipelineStage >= 1">→ Score + Issues</span>
+                </div>
+
+                <!-- Step 3: Evidence (Image) -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 2 ? 'bg-purple-600 text-white' : 'bg-gray-700/50 text-gray-500'">👁️</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-purple-400' : 'text-gray-500'">
+                        <span class="font-medium">Evidence</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-purple-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-purple-400">DETECT ONLY</strong><br>
+                                Extracts facts from image: color, material, pattern. No inference allowed.
+                            </span>
+                        </span>
+                    </div>
+                    <span class="text-purple-400 text-xs" x-show="pipelineStage >= 2">→ Facts from Image</span>
+                </div>
+
+                <!-- Step 4: Planner -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 2 ? 'bg-yellow-600 text-white' : 'bg-gray-700/50 text-gray-500'">📋</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-yellow-400' : 'text-gray-500'">
+                        <span class="font-medium">Planner</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-yellow-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-yellow-400">DECIDE ONLY</strong><br>
+                                Decides WHAT to optimize, classifies risk (low/medium/high), flags human review.
+                            </span>
+                        </span>
+                    </div>
+                    <span class="text-yellow-400 text-xs" x-show="pipelineStage >= 2">→ Actions + Risk</span>
+                </div>
+
+                <!-- Step 5: Writer -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 2 ? 'bg-orange-600 text-white' : 'bg-gray-700/50 text-gray-500'">✏️</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-orange-400' : 'text-gray-500'">
+                        <span class="font-medium">Writer</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-orange-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-orange-400">WRITE CONSTRAINED</strong><br>
+                                Generates text using ONLY allowed facts. Every word must be traceable.
+                            </span>
+                        </span>
+                    </div>
+                    <span class="text-orange-400 text-xs" x-show="pipelineStage >= 2">→ Proposals</span>
+                </div>
+
+                <!-- Step 6: Controller -->
+                <div class="flex items-center gap-2 text-xs">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                         :class="pipelineStage >= 3 ? 'bg-green-600 text-white' : 'bg-gray-700/50 text-gray-500'">🛡️</div>
+                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-green-400' : 'text-gray-500'">
+                        <span class="font-medium">Controller</span>
+                        <span class="group relative cursor-help">
+                            <span class="text-gray-500 hover:text-green-300">ⓘ</span>
+                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
+                                <strong class="text-green-400">REJECT ONLY</strong><br>
+                                Final gate: verifies facts, checks rules. If invalid → REJECT. Cannot approve itself.
+                            </span>
+                        </span>
+                    </div>
+                    <span class="text-green-400 text-xs" x-show="pipelineStage >= 3">→ ✅ Approve / ❌ Reject</span>
+                </div>
+
+                <!-- Mode indicator -->
+                <div class="mt-2 pt-2 border-t border-gray-700 flex justify-between items-center text-xs text-gray-500">
+                    <span>⚡ Fast Mode: Combined API calls</span>
+                    <span x-show="currentEnrichingProduct" class="text-green-400 animate-pulse">Running...</span>
+                </div>
             </div>
 
             <!-- Stats Bar -->
@@ -1455,7 +1547,7 @@
                 </div>
                 <div>
                     <div class="text-xl font-bold text-green-400" x-text="agentStats.proposalsGenerated"></div>
-                    <div class="text-xs text-gray-400">Approved</div>
+                    <div class="text-xs text-gray-400">Proposals</div>
                 </div>
                 <div>
                     <div class="text-xl font-bold text-red-400" x-text="agentStats.rejected || 0"></div>
