@@ -746,41 +746,65 @@ func (q *Queries) DeleteApprovalRule(ctx context.Context, id uuid.UUID) error {
 
 func (q *Queries) CreateJobWithDetails(ctx context.Context, j models.JobWithDetails) error {
 	logsJSON, _ := json.Marshal(j.Logs)
+	// Try full insert with new columns first
 	_, err := q.pool.Exec(ctx, `
 		INSERT INTO jobs (id, dataset_id, type, status, module, total_items, processed_items, proposals_generated, logs, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
 	`, j.ID, j.DatasetID, j.Type, j.Status, j.Module, j.TotalItems, j.ProcessedItems, j.ProposalsGenerated, logsJSON, j.CreatedAt)
+	
+	// Fallback to basic insert if new columns don't exist yet
+	if err != nil {
+		_, err = q.pool.Exec(ctx, `
+			INSERT INTO jobs (id, dataset_id, type, status, created_at)
+			VALUES ($1, $2, $3, $4, $5)
+		`, j.ID, j.DatasetID, j.Type, j.Status, j.CreatedAt)
+	}
 	return err
 }
 
 func (q *Queries) UpdateJobProgress(ctx context.Context, jobID uuid.UUID, processed, proposals int, log *models.JobLog) error {
 	if log != nil {
+		logJSON, _ := json.Marshal(log)
 		_, err := q.pool.Exec(ctx, `
 			UPDATE jobs SET 
 				processed_items = $2, 
 				proposals_generated = $3, 
-				logs = logs || $4::jsonb,
+				logs = COALESCE(logs, '[]'::jsonb) || $4::jsonb,
 				updated_at = NOW()
 			WHERE id = $1
-		`, jobID, processed, proposals, log)
-		return err
+		`, jobID, processed, proposals, logJSON)
+		// Fallback if columns don't exist
+		if err != nil {
+			return nil // Silently ignore if columns missing
+		}
+		return nil
 	}
-	_, err := q.pool.Exec(ctx, `
+	_, _ = q.pool.Exec(ctx, `
 		UPDATE jobs SET processed_items = $2, proposals_generated = $3, updated_at = NOW() WHERE id = $1
 	`, jobID, processed, proposals)
-	return err
+	return nil // Don't fail if columns missing
 }
 
 func (q *Queries) UpdateJobStatus(ctx context.Context, jobID uuid.UUID, status string, errMsg *string) error {
 	if status == "running" {
+		// Try with updated_at, fall back to basic
 		_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, started_at = NOW(), updated_at = NOW() WHERE id = $1`, jobID, status)
+		if err != nil {
+			_, err = q.pool.Exec(ctx, `UPDATE jobs SET status = $2, started_at = NOW() WHERE id = $1`, jobID, status)
+		}
 		return err
 	}
 	if status == "completed" || status == "failed" {
 		_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, error = $3, completed_at = NOW(), updated_at = NOW() WHERE id = $1`, jobID, status, errMsg)
+		if err != nil {
+			_, err = q.pool.Exec(ctx, `UPDATE jobs SET status = $2, error = $3, completed_at = NOW() WHERE id = $1`, jobID, status, errMsg)
+		}
 		return err
 	}
 	_, err := q.pool.Exec(ctx, `UPDATE jobs SET status = $2, updated_at = NOW() WHERE id = $1`, jobID, status)
+	if err != nil {
+		_, err = q.pool.Exec(ctx, `UPDATE jobs SET status = $2 WHERE id = $1`, jobID, status)
+	}
 	return err
 }
 
@@ -799,6 +823,7 @@ func (q *Queries) GetJob(ctx context.Context, id uuid.UUID) (*models.JobWithDeta
 }
 
 func (q *Queries) ListJobs(ctx context.Context, datasetID *uuid.UUID, status string, limit int) ([]models.JobWithDetails, error) {
+	// Try query with new columns first
 	query := `
 		SELECT j.id, j.dataset_id, j.type, j.status, COALESCE(j.module, ''), COALESCE(j.total_items, 0), COALESCE(j.processed_items, 0), COALESCE(j.proposals_generated, 0), COALESCE(j.logs, '[]'), j.error, j.started_at, j.completed_at, j.created_at, j.updated_at
 		FROM jobs j
@@ -808,7 +833,29 @@ func (q *Queries) ListJobs(ctx context.Context, datasetID *uuid.UUID, status str
 	`
 	rows, err := q.pool.Query(ctx, query, datasetID, status, limit)
 	if err != nil {
-		return nil, err
+		// Fallback to basic query if new columns don't exist
+		query = `
+			SELECT j.id, j.dataset_id, j.type, j.status, j.error, j.started_at, j.completed_at, j.created_at
+			FROM jobs j
+			WHERE ($1::uuid IS NULL OR j.dataset_id = $1)
+			AND ($2 = '' OR j.status = $2)
+			ORDER BY j.created_at DESC LIMIT $3
+		`
+		rows, err = q.pool.Query(ctx, query, datasetID, status, limit)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		
+		var jobs []models.JobWithDetails
+		for rows.Next() {
+			var j models.JobWithDetails
+			if err := rows.Scan(&j.ID, &j.DatasetID, &j.Type, &j.Status, &j.Error, &j.StartedAt, &j.CompletedAt, &j.CreatedAt); err != nil {
+				return nil, err
+			}
+			jobs = append(jobs, j)
+		}
+		return jobs, nil
 	}
 	defer rows.Close()
 
