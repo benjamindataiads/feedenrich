@@ -1119,143 +1119,181 @@
                     <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
                         <h2 class="text-xl font-bold mb-6 flex items-center gap-2">📖 Documentation</h2>
                         
-                        <!-- Core Principle -->
+                        <!-- Core Principles -->
                         <div class="mb-8 bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
-                            <h3 class="text-lg font-semibold mb-3 text-purple-400">🎯 Core Principle</h3>
-                            <p class="text-gray-300 mb-3">Never allow the same agent to <strong>evaluate</strong>, <strong>decide</strong>, AND <strong>generate</strong>.</p>
-                            <p class="text-sm text-gray-400">These responsibilities are strictly separated across 6 specialized agents.</p>
-                        </div>
-
-                        <!-- 6-Agent Pipeline -->
-                        <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-blue-400">🔄 6-Agent Pipeline</h3>
-                            <div class="bg-gray-700/30 rounded-lg p-4">
-                                <div class="flex items-center justify-between gap-2 text-center mb-6">
-                                    <div class="flex-1 bg-gray-700/50 rounded-lg p-2">
-                                        <div class="text-xl mb-1">✓</div>
-                                        <div class="font-medium text-xs">Validate</div>
-                                        <p class="text-xs text-gray-500">Rules</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-blue-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">⚖️</div>
-                                        <div class="font-medium text-xs">Audit</div>
-                                        <p class="text-xs text-gray-500">Judge</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-purple-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">👁️</div>
-                                        <div class="font-medium text-xs">Evidence</div>
-                                        <p class="text-xs text-gray-500">Vision</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-cyan-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">🔍</div>
-                                        <div class="font-medium text-xs">Retrieval</div>
-                                        <p class="text-xs text-gray-500">Facts</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-yellow-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">📋</div>
-                                        <div class="font-medium text-xs">Plan</div>
-                                        <p class="text-xs text-gray-500">Decide</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-orange-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">✏️</div>
-                                        <div class="font-medium text-xs">Write</div>
-                                        <p class="text-xs text-gray-500">Generate</p>
-                                    </div>
-                                    <span class="text-gray-600">→</span>
-                                    <div class="flex-1 bg-red-500/20 rounded-lg p-2">
-                                        <div class="text-xl mb-1">🛡️</div>
-                                        <div class="font-medium text-xs">Control</div>
-                                        <p class="text-xs text-gray-500">Reject?</p>
-                                    </div>
+                            <h3 class="text-lg font-semibold mb-3 text-purple-400">🎯 Core Principles</h3>
+                            <div class="space-y-2">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-green-400">✓</span>
+                                    <p class="text-gray-300"><strong>No Invention Policy:</strong> Every fact must be traceable to a source (feed data, image analysis, or web search).</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-green-400">✓</span>
+                                    <p class="text-gray-300"><strong>Human Gate:</strong> High-risk changes require human validation before application.</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-green-400">✓</span>
+                                    <p class="text-gray-300"><strong>Parallel Evidence:</strong> Multiple sources are gathered simultaneously for speed and cross-validation.</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Agent Details -->
+                        <!-- Architecture Diagram -->
                         <div class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-purple-400">🤖 The 6 Agents</h3>
-                            <div class="space-y-3">
-                                <!-- Auditor -->
-                                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-4 text-blue-400">🏗️ Orchestrated Architecture</h3>
+                            <div class="bg-gray-900 rounded-lg p-6 font-mono text-xs overflow-x-auto">
+                                <pre class="text-gray-300 leading-relaxed">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              <span class="text-yellow-400">ORCHESTRATOR</span>                                   │
+│                     (coordinates all components)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+         ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+         │ <span class="text-purple-400">📄 FEED DATA</span>  │  │ <span class="text-purple-400">👁️ IMAGE AI</span>   │  │ <span class="text-purple-400">🌐 WEB SEARCH</span> │
+         │              │  │              │  │              │
+         │ Raw product  │  │ GPT-4 Vision │  │ Brave Search │
+         │ attributes   │  │ analysis     │  │ API          │
+         └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+                │                 │                 │
+                │    <span class="text-cyan-400">PARALLEL EVIDENCE GATHERING</span>      │
+                └─────────────────┼─────────────────┘
+                                  ▼
+                    ┌─────────────────────────┐
+                    │     <span class="text-green-400">🧠 COMBINED AI</span>        │
+                    │                         │
+                    │  • Audit product data   │
+                    │  • Plan optimizations   │
+                    │  • Generate proposals   │
+                    │                         │
+                    │  <span class="text-gray-500">Single LLM call for</span>    │
+                    │  <span class="text-gray-500">speed & consistency</span>    │
+                    └───────────┬─────────────┘
+                                │
+                                ▼
+                    ┌─────────────────────────┐
+                    │  <span class="text-red-400">🛡️ DETERMINISTIC</span>        │
+                    │     <span class="text-red-400">VALIDATION</span>           │
+                    │                         │
+                    │  • GMC rule checking    │
+                    │  • Risk classification  │
+                    │  • Fact verification    │
+                    └───────────┬─────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+         ┌──────────────────┐    ┌──────────────────┐
+         │  <span class="text-green-400">✅ LOW RISK</span>     │    │  <span class="text-orange-400">⚠️ HIGH RISK</span>    │
+         │  Auto-applicable │    │  Human Gate      │
+         │                  │    │  Review required │
+         └──────────────────┘    └──────────────────┘
+                                </pre>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-3 text-center">This is NOT a linear pipeline. The orchestrator coordinates parallel evidence gathering and combines AI reasoning in a single optimized call.</p>
+                        </div>
+
+                        <!-- Component Details -->
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold mb-4 text-purple-400">🔧 System Components</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Orchestrator -->
+                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <span class="text-2xl">⚖️</span>
+                                        <span class="text-2xl">🎛️</span>
                                         <div>
-                                            <div class="font-bold text-blue-400">Product Auditor</div>
-                                            <div class="text-xs text-gray-500">JUDGE ONLY</div>
+                                            <div class="font-bold text-yellow-400">Orchestrator</div>
+                                            <div class="text-xs text-gray-500">COORDINATION</div>
                                         </div>
                                     </div>
-                                    <p class="text-sm text-gray-400 mb-2">Outputs structured diagnostics: violations, weaknesses, scores.</p>
-                                    <div class="text-xs text-red-400">❌ No rewriting • No suggestions • No creativity</div>
+                                    <p class="text-sm text-gray-400">Controls the enrichment flow, manages parallel tasks, aggregates evidence from all sources, and tracks session state.</p>
                                 </div>
                                 
-                                <!-- Evidence -->
+                                <!-- Image AI -->
                                 <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
                                     <div class="flex items-center gap-3 mb-2">
                                         <span class="text-2xl">👁️</span>
                                         <div>
-                                            <div class="font-bold text-purple-400">Image Evidence Agent</div>
-                                            <div class="text-xs text-gray-500">DETECT ONLY</div>
+                                            <div class="font-bold text-purple-400">Image Analysis</div>
+                                            <div class="text-xs text-gray-500">GPT-4 VISION</div>
                                         </div>
                                     </div>
-                                    <p class="text-sm text-gray-400 mb-2">Allowed: detect, confirm, deny, mark uncertainty.</p>
-                                    <div class="text-xs text-red-400">❌ No inference • No adjectives • No marketing language</div>
+                                    <p class="text-sm text-gray-400 mb-2">Extracts: color, material, pattern, style, gender, age_group, product_type.</p>
+                                    <div class="text-xs text-green-400">✓ High confidence for visual attributes</div>
                                 </div>
                                 
-                                <!-- Retrieval -->
+                                <!-- Web Search -->
                                 <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <span class="text-2xl">🔍</span>
+                                        <span class="text-2xl">🌐</span>
                                         <div>
-                                            <div class="font-bold text-cyan-400">Knowledge Retrieval Agent</div>
-                                            <div class="text-xs text-gray-500">FETCH FACTS</div>
+                                            <div class="font-bold text-cyan-400">Web Search</div>
+                                            <div class="text-xs text-gray-500">BRAVE SEARCH API</div>
                                         </div>
                                     </div>
-                                    <p class="text-sm text-gray-400 mb-2">Every fact has: source URL + evidence snippet + confidence.</p>
-                                    <div class="text-xs text-green-400">✓ This is how we eliminate hallucination</div>
+                                    <p class="text-sm text-gray-400 mb-2">Searches by GTIN/EAN first (highest confidence), then brand + product name.</p>
+                                    <div class="text-xs text-green-400">✓ External fact verification</div>
                                 </div>
                                 
-                                <!-- Planner -->
-                                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                                <!-- Combined AI -->
+                                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <span class="text-2xl">📋</span>
+                                        <span class="text-2xl">🧠</span>
                                         <div>
-                                            <div class="font-bold text-yellow-400">Optimization Planner</div>
-                                            <div class="text-xs text-gray-500">DECIDE ONLY</div>
+                                            <div class="font-bold text-green-400">Combined AI</div>
+                                            <div class="text-xs text-gray-500">AUDIT + PLAN + WRITE</div>
                                         </div>
                                     </div>
-                                    <p class="text-sm text-gray-400 mb-2">Decides WHAT to optimize, classifies risk, identifies human gates.</p>
-                                    <div class="text-xs text-red-400">❌ No text generation • Decision logic only</div>
+                                    <p class="text-sm text-gray-400 mb-2">Single LLM call that audits data, plans optimizations, and generates proposals with rationale.</p>
+                                    <div class="text-xs text-blue-400">⚡ Optimized for speed & consistency</div>
                                 </div>
                                 
-                                <!-- Writer -->
-                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <span class="text-2xl">✏️</span>
-                                        <div>
-                                            <div class="font-bold text-orange-400">Copy Execution Agent</div>
-                                            <div class="text-xs text-gray-500">WRITE UNDER CONSTRAINTS</div>
-                                        </div>
-                                    </div>
-                                    <p class="text-sm text-gray-400 mb-2">Receives: allowed_facts, forbidden_facts, constraints, objective.</p>
-                                    <div class="text-xs text-red-400">❌ Cannot invent • Every fact traceable</div>
-                                </div>
-                                
-                                <!-- Controller -->
+                                <!-- Validator -->
                                 <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
                                     <div class="flex items-center gap-3 mb-2">
                                         <span class="text-2xl">🛡️</span>
                                         <div>
-                                            <div class="font-bold text-red-400">Controller Agent</div>
-                                            <div class="text-xs text-gray-500">EXISTS ONLY TO SAY NO</div>
+                                            <div class="font-bold text-red-400">Deterministic Validator</div>
+                                            <div class="text-xs text-gray-500">RULE-BASED</div>
                                         </div>
                                     </div>
-                                    <p class="text-sm text-gray-400 mb-2">Compares before/after, verifies facts, checks rules. If wrong → REJECT.</p>
-                                    <div class="text-xs text-green-400">✓ This is what makes enterprises trust the system</div>
+                                    <p class="text-sm text-gray-400 mb-2">Hard-coded GMC rules: required fields, forbidden words, format validation. No AI - 100% predictable.</p>
+                                    <div class="text-xs text-green-400">✓ Consistent, auditable, trustworthy</div>
+                                </div>
+                                
+                                <!-- Human Gate -->
+                                <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">👤</span>
+                                        <div>
+                                            <div class="font-bold text-orange-400">Human Gate</div>
+                                            <div class="text-xs text-gray-500">RISK MANAGEMENT</div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-400 mb-2">High-risk changes (brand names, pricing, identifiers) require human approval before application.</p>
+                                    <div class="text-xs text-green-400">✓ Enterprise-grade safety</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Why This Architecture -->
+                        <div class="mb-8 bg-gray-700/30 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-3 text-blue-400">💡 Why This Architecture?</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div class="text-center">
+                                    <div class="text-2xl mb-2">⚡</div>
+                                    <div class="font-medium text-white mb-1">Speed</div>
+                                    <p class="text-gray-400">Parallel evidence gathering + single combined AI call = fast enrichment</p>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl mb-2">🎯</div>
+                                    <div class="font-medium text-white mb-1">Accuracy</div>
+                                    <p class="text-gray-400">Multiple sources cross-validate each other. No single point of hallucination.</p>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl mb-2">🔒</div>
+                                    <div class="font-medium text-white mb-1">Trust</div>
+                                    <p class="text-gray-400">Deterministic validation + human gates = enterprise-ready reliability</p>
                                 </div>
                             </div>
                         </div>
@@ -1428,114 +1466,117 @@
                 </div>
             </div>
 
-            <!-- Agent Pipeline Steps -->
-            <div class="p-3 bg-gray-900/50 border-b border-gray-700 space-y-2">
-                <!-- Step 1: Validator -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 1 ? 'bg-gray-600 text-white' : 'bg-gray-700/50 text-gray-500'">✓</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-gray-300' : 'text-gray-500'">
-                        <span class="font-medium">Validator</span>
-                        <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-gray-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-white">Hard Rules Check</strong><br>
-                                Deterministic validation: required fields, URL format, forbidden words. No AI.
-                            </span>
-                        </span>
+            <!-- Agent Orchestration View -->
+            <div class="p-3 bg-gray-900/50 border-b border-gray-700">
+                <!-- Orchestrator Header -->
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-yellow-400">🎛️</span>
+                        <span class="text-xs font-medium text-yellow-400">ORCHESTRATOR</span>
                     </div>
-                    <span class="text-gray-500 text-xs" x-show="pipelineStage >= 1">PASS/FAIL</span>
+                    <span x-show="currentEnrichingProduct" class="text-xs text-green-400 animate-pulse flex items-center gap-1">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Running
+                    </span>
                 </div>
 
-                <!-- Step 2: Auditor -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-500'">⚖️</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 1 ? 'text-blue-400' : 'text-gray-500'">
-                        <span class="font-medium">Auditor</span>
-                        <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-blue-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-blue-400">JUDGE ONLY</strong><br>
-                                Scores quality, identifies violations & weak fields. Never suggests fixes.
-                            </span>
-                        </span>
+                <!-- Parallel Evidence Row -->
+                <div class="mb-2">
+                    <div class="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                        <span>↓</span> Parallel Evidence Gathering
                     </div>
-                    <span class="text-blue-400 text-xs" x-show="pipelineStage >= 1">→ Score + Issues</span>
+                    <div class="flex gap-2">
+                        <!-- Feed Data -->
+                        <div class="flex-1 rounded p-2 text-center transition-all"
+                             :class="pipelineStage >= 1 ? 'bg-blue-500/20 border border-blue-500/40' : 'bg-gray-700/30 border border-gray-700'">
+                            <div class="text-lg mb-0.5">📄</div>
+                            <div class="text-xs font-medium" :class="pipelineStage >= 1 ? 'text-blue-300' : 'text-gray-500'">Feed</div>
+                        </div>
+                        <!-- Image AI -->
+                        <div class="flex-1 rounded p-2 text-center transition-all"
+                             :class="pipelineStage >= 1 ? 'bg-purple-500/20 border border-purple-500/40' : 'bg-gray-700/30 border border-gray-700'">
+                            <div class="text-lg mb-0.5">👁️</div>
+                            <div class="text-xs font-medium" :class="pipelineStage >= 1 ? 'text-purple-300' : 'text-gray-500'">Image AI</div>
+                            <span class="group relative cursor-help">
+                                <span class="text-gray-600 hover:text-purple-300 text-xs">ⓘ</span>
+                                <span class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg text-left">
+                                    <strong class="text-purple-400">GPT-4 Vision</strong><br>
+                                    Extracts: color, material, pattern, style, gender, product_type
+                                </span>
+                            </span>
+                        </div>
+                        <!-- Web Search -->
+                        <div class="flex-1 rounded p-2 text-center transition-all"
+                             :class="pipelineStage >= 1 ? 'bg-cyan-500/20 border border-cyan-500/40' : 'bg-gray-700/30 border border-gray-700'">
+                            <div class="text-lg mb-0.5">🌐</div>
+                            <div class="text-xs font-medium" :class="pipelineStage >= 1 ? 'text-cyan-300' : 'text-gray-500'">Web</div>
+                            <span class="group relative cursor-help">
+                                <span class="text-gray-600 hover:text-cyan-300 text-xs">ⓘ</span>
+                                <span class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg text-left">
+                                    <strong class="text-cyan-400">Brave Search</strong><br>
+                                    Searches GTIN/EAN first, then brand + product for verification
+                                </span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Step 3: Evidence (Image) -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 2 ? 'bg-purple-600 text-white' : 'bg-gray-700/50 text-gray-500'">👁️</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-purple-400' : 'text-gray-500'">
-                        <span class="font-medium">Evidence</span>
+                <!-- Arrow down -->
+                <div class="text-center text-gray-600 text-xs mb-2">↓ Merge evidence</div>
+
+                <!-- Combined AI Block -->
+                <div class="rounded p-2 mb-2 transition-all"
+                     :class="pipelineStage >= 2 ? 'bg-green-500/20 border border-green-500/40' : 'bg-gray-700/30 border border-gray-700'">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🧠</span>
+                            <div>
+                                <div class="text-xs font-medium" :class="pipelineStage >= 2 ? 'text-green-300' : 'text-gray-500'">Combined AI</div>
+                                <div class="text-xs text-gray-500">Audit + Plan + Write</div>
+                            </div>
+                        </div>
                         <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-purple-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-purple-400">DETECT ONLY</strong><br>
-                                Extracts facts from image: color, material, pattern. No inference allowed.
+                            <span class="text-gray-600 hover:text-green-300 text-xs">ⓘ</span>
+                            <span class="absolute right-0 bottom-full mb-2 w-52 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg text-left">
+                                <strong class="text-green-400">Single LLM Call</strong><br>
+                                Combines auditing, planning, and proposal generation for speed. Uses all evidence sources to generate optimizations with rationale.
                             </span>
                         </span>
                     </div>
-                    <span class="text-purple-400 text-xs" x-show="pipelineStage >= 2">→ Facts from Image</span>
+                    <div class="text-xs text-gray-500 mt-1" x-show="pipelineStage >= 2">→ Score + Proposals + Rationale</div>
                 </div>
 
-                <!-- Step 4: Planner -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 2 ? 'bg-yellow-600 text-white' : 'bg-gray-700/50 text-gray-500'">📋</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-yellow-400' : 'text-gray-500'">
-                        <span class="font-medium">Planner</span>
-                        <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-yellow-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-yellow-400">DECIDE ONLY</strong><br>
-                                Decides WHAT to optimize, classifies risk (low/medium/high), flags human review.
-                            </span>
-                        </span>
-                    </div>
-                    <span class="text-yellow-400 text-xs" x-show="pipelineStage >= 2">→ Actions + Risk</span>
-                </div>
+                <!-- Arrow down -->
+                <div class="text-center text-gray-600 text-xs mb-2">↓ Validate</div>
 
-                <!-- Step 5: Writer -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 2 ? 'bg-orange-600 text-white' : 'bg-gray-700/50 text-gray-500'">✏️</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 2 ? 'text-orange-400' : 'text-gray-500'">
-                        <span class="font-medium">Writer</span>
+                <!-- Validation Gate -->
+                <div class="rounded p-2 transition-all"
+                     :class="pipelineStage >= 3 ? 'bg-red-500/20 border border-red-500/40' : 'bg-gray-700/30 border border-gray-700'">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🛡️</span>
+                            <div>
+                                <div class="text-xs font-medium" :class="pipelineStage >= 3 ? 'text-red-300' : 'text-gray-500'">Validation Gate</div>
+                                <div class="text-xs text-gray-500">Rules + Risk Classification</div>
+                            </div>
+                        </div>
                         <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-orange-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-orange-400">WRITE CONSTRAINED</strong><br>
-                                Generates text using ONLY allowed facts. Every word must be traceable.
+                            <span class="text-gray-600 hover:text-red-300 text-xs">ⓘ</span>
+                            <span class="absolute right-0 bottom-full mb-2 w-52 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg text-left">
+                                <strong class="text-red-400">Deterministic Checks</strong><br>
+                                Hard GMC rules: required fields, forbidden words, URL format. Classifies risk level. No AI - 100% predictable.
                             </span>
                         </span>
                     </div>
-                    <span class="text-orange-400 text-xs" x-show="pipelineStage >= 2">→ Proposals</span>
-                </div>
-
-                <!-- Step 6: Controller -->
-                <div class="flex items-center gap-2 text-xs">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                         :class="pipelineStage >= 3 ? 'bg-green-600 text-white' : 'bg-gray-700/50 text-gray-500'">🛡️</div>
-                    <div class="flex-1 flex items-center gap-1" :class="pipelineStage >= 3 ? 'text-green-400' : 'text-gray-500'">
-                        <span class="font-medium">Controller</span>
-                        <span class="group relative cursor-help">
-                            <span class="text-gray-500 hover:text-green-300">ⓘ</span>
-                            <span class="absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 border border-gray-600 rounded text-xs text-gray-300 hidden group-hover:block z-50 shadow-lg">
-                                <strong class="text-green-400">REJECT ONLY</strong><br>
-                                Final gate: verifies facts, checks rules. If invalid → REJECT. Cannot approve itself.
-                            </span>
-                        </span>
+                    <div class="flex gap-4 mt-2 text-xs" x-show="pipelineStage >= 3">
+                        <span class="text-green-400">✅ Low risk → Auto</span>
+                        <span class="text-orange-400">⚠️ High risk → Human</span>
                     </div>
-                    <span class="text-green-400 text-xs" x-show="pipelineStage >= 3">→ ✅ Approve / ❌ Reject</span>
                 </div>
 
                 <!-- Mode indicator -->
-                <div class="mt-2 pt-2 border-t border-gray-700 flex justify-between items-center text-xs text-gray-500">
-                    <span>⚡ Fast Mode: Combined API calls</span>
-                    <span x-show="currentEnrichingProduct" class="text-green-400 animate-pulse">Running...</span>
+                <div class="mt-3 pt-2 border-t border-gray-700 flex justify-between items-center text-xs text-gray-500">
+                    <span>⚡ Optimized: 1-2 API calls max</span>
+                    <span class="text-purple-400">No linear pipeline</span>
                 </div>
             </div>
 
