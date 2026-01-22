@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/benjamincozon/feedenrich/internal/agent/tools"
@@ -35,6 +36,7 @@ type Callbacks struct {
 	OnProposal   func(proposal models.Proposal)
 	OnComplete   func(summary SessionSummary)
 	OnError      func(err error)
+	OnLog        func(message string) // General logging for UI visibility
 }
 
 // Session represents an active agent session
@@ -158,8 +160,19 @@ func (a *Agent) Run(ctx context.Context, product *models.Product, goal string) (
 func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]models.Proposal, error) {
 	// Extract image URL for parallel analysis
 	var imageContext string
+	var imageAnalysisStatus string
+	
 	imageURL := extractImageURL(product.RawData)
-	if imageURL != "" {
+	if imageURL == "" {
+		imageAnalysisStatus = "no_image_url"
+		if a.callbacks.OnLog != nil {
+			a.callbacks.OnLog("⚠️ No image URL found in product data - skipping image analysis")
+		}
+	} else {
+		if a.callbacks.OnLog != nil {
+			a.callbacks.OnLog(fmt.Sprintf("👁️ Analyzing image: %s...", truncateURL(imageURL, 60)))
+		}
+		
 		// Quick image analysis
 		imgResp, err := a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 			Model: openai.GPT4oMini,
@@ -169,7 +182,19 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 					MultiContent: []openai.ChatMessagePart{
 						{
 							Type: openai.ChatMessagePartTypeText,
-							Text: `Extract ALL GMC attributes from this image. Output JSON: {"color":"primary color","secondary_colors":[],"material":"if visible","pattern":"solid/striped/floral/etc","style":"casual/formal/sporty","gender":"male/female/unisex if obvious","age_group":"adult/kids if obvious","product_type":"what the product is","observations":["other facts"]}. Only state what you clearly see.`,
+							Text: `Extract ALL GMC attributes from this product image. Be thorough and extract everything visible.
+Output JSON: {
+  "color": "primary color name",
+  "secondary_colors": ["other colors visible"],
+  "material": "fabric/material if visible (cotton, leather, polyester, etc.)",
+  "pattern": "solid/striped/floral/checkered/printed/etc.",
+  "style": "casual/formal/sporty/elegant/etc.",
+  "gender": "male/female/unisex based on product design",
+  "age_group": "adult/kids/baby based on product",
+  "product_type": "specific product type (e.g., 't-shirt', 'sneakers', 'handbag')",
+  "observations": ["any other relevant details: logos, text, features"]
+}
+IMPORTANT: Only state what you can CLEARLY see. Use null for uncertain attributes.`,
 						},
 						{
 							Type:     openai.ChatMessagePartTypeImageURL,
@@ -179,15 +204,28 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 				},
 			},
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject},
-			MaxTokens:      200,
+			MaxTokens:      300,
 			Temperature:    0.1,
 		})
-		if err == nil && len(imgResp.Choices) > 0 {
-			imageContext = "\n\nImage Analysis: " + imgResp.Choices[0].Message.Content
+		
+		if err != nil {
+			imageAnalysisStatus = "error"
+			if a.callbacks.OnLog != nil {
+				a.callbacks.OnLog(fmt.Sprintf("❌ Image analysis failed: %v", err))
+			}
+		} else if len(imgResp.Choices) > 0 {
+			imageContext = "\n\n=== IMAGE ANALYSIS RESULTS (use as high-confidence source) ===\n" + imgResp.Choices[0].Message.Content
+			imageAnalysisStatus = "success"
 			// Track image analysis tokens
 			a.recordUsage(ctx, openai.GPT4oMini, imgResp.Usage)
+			
+			if a.callbacks.OnLog != nil {
+				a.callbacks.OnLog(fmt.Sprintf("✅ Image analyzed: %s", imgResp.Choices[0].Message.Content))
+			}
 		}
 	}
+	
+	_ = imageAnalysisStatus // Used for debugging/metrics
 
 	// Main optimization call
 	systemPrompt := `You are a GMC (Google Merchant Center) product data optimizer. Analyze and generate optimization proposals.
@@ -407,14 +445,53 @@ OPTIONAL BUT VALUABLE:
 func extractImageURL(data json.RawMessage) string {
 	var fields map[string]interface{}
 	json.Unmarshal(data, &fields)
-	for _, key := range []string{"image_link", "image link", "imageLink", "image", "Image"} {
+	
+	// Check all possible image field names (English + French + variants)
+	imageFields := []string{
+		// GMC standard
+		"image_link", "image link", "imageLink",
+		// Common variants
+		"image", "Image", "image_url", "imageUrl", "ImageURL",
+		"main_image", "mainImage", "primary_image",
+		"picture", "Picture", "photo", "Photo",
+		// French
+		"lien_image", "lien image", "url_image", "url image",
+		"image_produit", "photo_produit",
+		// Additional image links (use first if main missing)
+		"additional_image_link", "additional_image_links",
+	}
+	
+	for _, key := range imageFields {
 		if val, ok := fields[key]; ok {
 			if str, ok := val.(string); ok && str != "" {
-				return str
+				// Validate it looks like a URL
+				if strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") {
+					return str
+				}
 			}
 		}
 	}
+	
+	// Also check case-insensitive
+	for k, v := range fields {
+		lower := strings.ToLower(k)
+		if strings.Contains(lower, "image") || strings.Contains(lower, "photo") || strings.Contains(lower, "picture") {
+			if str, ok := v.(string); ok && str != "" {
+				if strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") {
+					return str
+				}
+			}
+		}
+	}
+	
 	return ""
+}
+
+func truncateURL(url string, maxLen int) string {
+	if len(url) <= maxLen {
+		return url
+	}
+	return url[:maxLen-3] + "..."
 }
 
 func (a *Agent) executeStep(ctx context.Context, session *Session, stepNum int) (*models.AgentTrace, int, bool, error) {
