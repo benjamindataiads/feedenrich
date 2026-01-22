@@ -259,15 +259,31 @@ OPTIONAL BUT VALUABLE:
    - Include: benefits, features, use cases, specifications
    - NO promotional text or ALL CAPS
 
-3. MISSING ATTRIBUTES (ALWAYS propose if inferable):
-   - color: Infer from image or title/description
-   - gender: Infer from product type, title, or image
-   - age_group: Default to "adult" for non-kids products
-   - material: Infer from image or product type
-   - pattern: Infer from image (striped, solid, floral, etc.)
-   - size: Extract from title if present
-   - product_type: Build hierarchy from category/title
-   - google_product_category: Map to Google taxonomy
+3. MISSING ATTRIBUTES - ALWAYS PROPOSE IF EMPTY:
+   
+   REQUIRED FOR APPAREL (MUST fill if empty):
+   - color: From image analysis or title/description
+   - gender: From product type, title, image (male/female/unisex)
+   - age_group: Default "adult" unless kids/baby product → ALWAYS PROPOSE IF EMPTY
+   - size: Extract from title/description if present
+   
+   STRONGLY RECOMMENDED (MUST fill if empty):
+   - condition: Default "new" unless indicated otherwise → ALWAYS PROPOSE IF EMPTY
+   - product_type: Build hierarchy from category/title (e.g., "Apparel > Women > Dresses")
+   - google_product_category: Map to Google taxonomy ID
+   
+   SIZE DETAILS (IMPORTANT for apparel):
+   - size_system: Infer from currency/locale:
+     * EUR prices → "EU"
+     * GBP prices → "UK"  
+     * USD prices → "US"
+     * Default → "EU" for European merchants
+     → ALWAYS PROPOSE IF EMPTY FOR APPAREL
+   - size_type: "regular" by default, "plus"/"petite"/"maternity" if indicated
+   
+   VISUAL ATTRIBUTES (from image):
+   - material: From image or product type (cotton, polyester, leather...)
+   - pattern: From image (solid, striped, floral, checkered, printed...)
 
 4. CONFIDENCE LEVELS:
    - HIGH (0.9+): Direct from feed data or clear image observation
@@ -282,8 +298,10 @@ OPTIONAL BUT VALUABLE:
 === CRITICAL RULES ===
 - NO INVENTION: Only use facts from feed data or image analysis
 - Be GENEROUS: Propose improvements that could be rejected rather than miss opportunities
-- Generate AT LEAST 2-3 proposals for any product with room for improvement
-- For APPAREL: ALWAYS check color, gender, age_group, size`
+- Generate AT LEAST 3-5 proposals for any product with room for improvement
+- ALWAYS fill these if empty: condition (→"new"), age_group (→"adult"), size_system (→infer from currency)
+- For APPAREL: ALWAYS check AND PROPOSE: color, gender, age_group, size, size_system, condition
+- DO NOT skip fields just because they seem "optional" - GMC rewards completeness`
 
 	userPrompt := fmt.Sprintf("Product Data:\n%s%s\n\nGenerate optimization proposals.", string(product.RawData), imageContext)
 
