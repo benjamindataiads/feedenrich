@@ -166,10 +166,87 @@ func (h *Handlers) parseFile(filePath string) (int, []models.Product, error) {
 		return 0, nil, fmt.Errorf("read header: %w", err)
 	}
 
-	// Normalize header names
+	// Field mapping: French/Common variants → GMC standard English names
+	fieldMapping := map[string]string{
+		// French → English
+		"titre":             "title",
+		"nom":               "title",
+		"nom du produit":    "title",
+		"libellé":           "title",
+		"libelle":           "title",
+		"description":       "description",
+		"descriptif":        "description",
+		"lien":              "link",
+		"url":               "link",
+		"lien produit":      "link",
+		"image":             "image_link",
+		"lien image":        "image_link",
+		"url image":         "image_link",
+		"photo":             "image_link",
+		"prix":              "price",
+		"tarif":             "price",
+		"disponibilité":     "availability",
+		"disponibilite":     "availability",
+		"stock":             "availability",
+		"marque":            "brand",
+		"fabricant":         "brand",
+		"couleur":           "color",
+		"teinte":            "color",
+		"coloris":           "color",
+		"genre":             "gender",
+		"sexe":              "gender",
+		"taille":            "size",
+		"pointure":          "size",
+		"système de taille": "size_system",
+		"systeme de taille": "size_system",
+		"type de taille":    "size_type",
+		"groupe d'âge":      "age_group",
+		"groupe d'age":      "age_group",
+		"tranche d'âge":     "age_group",
+		"tranche d'age":     "age_group",
+		"âge":               "age_group",
+		"age":               "age_group",
+		"matière":           "material",
+		"matiere":           "material",
+		"tissu":             "material",
+		"composition":       "material",
+		"motif":             "pattern",
+		"imprimé":           "pattern",
+		"imprime":           "pattern",
+		"état":              "condition",
+		"etat":              "condition",
+		"condition":         "condition",
+		"catégorie":         "product_type",
+		"categorie":         "product_type",
+		"type de produit":   "product_type",
+		"catégorie google":  "google_product_category",
+		"categorie google":  "google_product_category",
+		"ean":               "gtin",
+		"code barre":        "gtin",
+		"code-barre":        "gtin",
+		"référence":         "mpn",
+		"reference":         "mpn",
+		"ref":               "mpn",
+		"identifiant":       "id",
+		"offer_id":          "id",
+		"offre_id":          "id",
+		// Common variants
+		"image link":        "image_link",
+		"image_url":         "image_link",
+		"product_type":      "product_type",
+		"product type":      "product_type",
+	}
+
+	// Normalize header names and apply field mapping
 	headerMap := make(map[string]int)
 	for i, h := range header {
-		headerMap[strings.ToLower(strings.TrimSpace(h))] = i
+		normalized := strings.ToLower(strings.TrimSpace(h))
+		// Apply mapping if exists, otherwise keep normalized name
+		if mapped, ok := fieldMapping[normalized]; ok {
+			headerMap[mapped] = i
+		} else {
+			headerMap[normalized] = i
+		}
 	}
 
 	var products []models.Product

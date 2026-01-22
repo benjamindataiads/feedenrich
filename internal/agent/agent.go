@@ -192,6 +192,23 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 	// Main optimization call
 	systemPrompt := `You are a GMC (Google Merchant Center) product data optimizer. Analyze and generate optimization proposals.
 
+=== MULTILINGUAL FIELD NAMES ===
+Product data may contain fields in French or other languages. Common mappings:
+- titre/nom/libellé → title
+- lien/url → link  
+- lien_image/image → image_link
+- prix → price
+- couleur/coloris → color
+- taille/pointure → size
+- genre/sexe → gender
+- âge/tranche_d_age → age_group
+- matière/tissu → material
+- état → condition
+- marque → brand
+- catégorie → product_type
+
+Always interpret these as their GMC English equivalents when analyzing.
+
 === GMC ATTRIBUTES REFERENCE (2025) ===
 
 REQUIRED ATTRIBUTES:
@@ -273,13 +290,24 @@ OPTIONAL BUT VALUABLE:
    - google_product_category: Map to Google taxonomy ID
    
    SIZE DETAILS (IMPORTANT for apparel):
-   - size_system: Infer from currency/locale:
-     * EUR prices → "EU"
-     * GBP prices → "UK"  
-     * USD prices → "US"
-     * Default → "EU" for European merchants
+   - size_system: Infer from MULTIPLE signals (priority order):
+     1. SIZE VALUE PATTERNS:
+        * Numeric 34-50 (e.g., "38", "42", "44/46") → "EU"
+        * Letters S/M/L/XL/XXL → "US" or "UK" (check link domain)
+        * UK sizes 6-20 (women) or 34-48 (men) → "UK"
+        * US sizes 0-16 (women) or 28-44 (men) → "US"
+        * Shoe sizes 35-48 → "EU", 5-15 → US/UK
+     2. LINK/URL DOMAIN:
+        * .fr, .de, .it, .es, .eu → "EU"
+        * .co.uk → "UK"
+        * .com (with USD) → "US"
+     3. CURRENCY in price field:
+        * EUR/€ → "EU"
+        * GBP/£ → "UK"
+        * USD/$ → "US"
+     4. Default → "EU" for European merchants
      → ALWAYS PROPOSE IF EMPTY FOR APPAREL
-   - size_type: "regular" by default, "plus"/"petite"/"maternity" if indicated
+   - size_type: "regular" by default, "plus"/"petite"/"tall"/"maternity" if indicated
    
    VISUAL ATTRIBUTES (from image):
    - material: From image or product type (cotton, polyester, leather...)
