@@ -537,12 +537,21 @@ func (h *Handlers) AuditDataset(c echo.Context) error {
 
 	group := agent.OptimizationGroup(req.Group)
 	
+	// Get group display name
+	groupName := string(group)
+	for _, g := range agent.GetAllGroups() {
+		if g.ID == group {
+			groupName = g.Name
+			break
+		}
+	}
+	
 	// Create job record for tracking
 	job := models.JobWithDetails{
 		Job: models.Job{
 			ID:        uuid.New(),
 			DatasetID: id,
-			Type:      "audit",
+			Type:      groupName,
 			Status:    "pending",
 			CreatedAt: time.Now(),
 		},
