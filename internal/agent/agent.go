@@ -158,22 +158,34 @@ func (a *Agent) Run(ctx context.Context, product *models.Product, goal string) (
 
 // runFastMode executes optimization in a single API call
 func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]models.Proposal, error) {
-	// Extract image URL for parallel analysis
 	var imageContext string
 	var imageAnalysisStatus string
 	
+	// SMART OPTIMIZATION: Check if feed already has visual attributes
+	// If feed is "complete enough", skip expensive image analysis
+	missingVisualAttrs := checkMissingVisualAttributes(product.RawData)
+	needsImageAnalysis := len(missingVisualAttrs) >= 2 // Only if 2+ visual attrs missing
+	
 	imageURL := extractImageURL(product.RawData)
+	
 	if imageURL == "" {
 		imageAnalysisStatus = "no_image_url"
 		if a.callbacks.OnLog != nil {
-			a.callbacks.OnLog("⚠️ No image URL found in product data - skipping image analysis")
+			a.callbacks.OnLog("⚠️ No image URL - using feed data only")
+		}
+	} else if !needsImageAnalysis {
+		// SKIP image analysis - feed is complete enough
+		imageAnalysisStatus = "skipped_feed_complete"
+		if a.callbacks.OnLog != nil {
+			a.callbacks.OnLog(fmt.Sprintf("⚡ Feed has visual attrs - skipping image analysis (missing only: %v)", missingVisualAttrs))
 		}
 	} else {
+		// Need image analysis - visual attributes are missing
 		if a.callbacks.OnLog != nil {
-			a.callbacks.OnLog(fmt.Sprintf("👁️ Analyzing image: %s...", truncateURL(imageURL, 60)))
+			a.callbacks.OnLog(fmt.Sprintf("👁️ Missing %d visual attrs %v - analyzing image...", len(missingVisualAttrs), missingVisualAttrs))
 		}
 		
-		// Quick image analysis
+		// Quick image analysis - only extract what's missing
 		imgResp, err := a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 			Model: openai.GPT4oMini,
 			Messages: []openai.ChatCompletionMessage{
@@ -182,19 +194,8 @@ func (a *Agent) runFastMode(ctx context.Context, product *models.Product) ([]mod
 					MultiContent: []openai.ChatMessagePart{
 						{
 							Type: openai.ChatMessagePartTypeText,
-							Text: `Extract ALL GMC attributes from this product image. Be thorough and extract everything visible.
-Output JSON: {
-  "color": "primary color name",
-  "secondary_colors": ["other colors visible"],
-  "material": "fabric/material if visible (cotton, leather, polyester, etc.)",
-  "pattern": "solid/striped/floral/checkered/printed/etc.",
-  "style": "casual/formal/sporty/elegant/etc.",
-  "gender": "male/female/unisex based on product design",
-  "age_group": "adult/kids/baby based on product",
-  "product_type": "specific product type (e.g., 't-shirt', 'sneakers', 'handbag')",
-  "observations": ["any other relevant details: logos, text, features"]
-}
-IMPORTANT: Only state what you can CLEARLY see. Use null for uncertain attributes.`,
+							Text: fmt.Sprintf(`Extract these MISSING attributes from the image: %v
+Output JSON with ONLY these fields. Be concise. Use null if not visible.`, missingVisualAttrs),
 						},
 						{
 							Type:     openai.ChatMessagePartTypeImageURL,
@@ -204,7 +205,7 @@ IMPORTANT: Only state what you can CLEARLY see. Use null for uncertain attribute
 				},
 			},
 			ResponseFormat: &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject},
-			MaxTokens:      300,
+			MaxTokens:      150, // Reduced - only extracting specific fields
 			Temperature:    0.1,
 		})
 		
@@ -214,24 +215,25 @@ IMPORTANT: Only state what you can CLEARLY see. Use null for uncertain attribute
 				a.callbacks.OnLog(fmt.Sprintf("❌ Image analysis failed: %v", err))
 			}
 		} else if len(imgResp.Choices) > 0 {
-			imageContext = "\n\n=== IMAGE ANALYSIS RESULTS (use as high-confidence source) ===\n" + imgResp.Choices[0].Message.Content
+			imageContext = "\n\n=== IMAGE ANALYSIS (for missing attrs) ===\n" + imgResp.Choices[0].Message.Content
 			imageAnalysisStatus = "success"
-			// Track image analysis tokens
 			a.recordUsage(ctx, openai.GPT4oMini, imgResp.Usage)
 			
 			if a.callbacks.OnLog != nil {
-				a.callbacks.OnLog(fmt.Sprintf("✅ Image analyzed: %s", imgResp.Choices[0].Message.Content))
+				a.callbacks.OnLog(fmt.Sprintf("✅ Image: %s", imgResp.Choices[0].Message.Content))
 			}
 		}
 	}
 	
 	// Log source aggregation
 	if a.callbacks.OnLog != nil {
-		sources := []string{"📄 Feed data"}
-		if imageAnalysisStatus == "success" {
-			sources = append(sources, "👁️ Image analysis")
+		if imageAnalysisStatus == "skipped_feed_complete" {
+			a.callbacks.OnLog("⚡ FAST MODE: Feed data sufficient")
+		} else if imageAnalysisStatus == "success" {
+			a.callbacks.OnLog("🔄 Combining: Feed + Image")
+		} else {
+			a.callbacks.OnLog("📄 Using: Feed data only")
 		}
-		a.callbacks.OnLog(fmt.Sprintf("🔄 Aggregating sources: %s", strings.Join(sources, " + ")))
 	}
 
 	// Main optimization call
@@ -544,6 +546,63 @@ func truncateURL(url string, maxLen int) string {
 		return url
 	}
 	return url[:maxLen-3] + "..."
+}
+
+// checkMissingVisualAttributes returns list of visual attributes that are empty/missing
+func checkMissingVisualAttributes(data json.RawMessage) []string {
+	var fields map[string]interface{}
+	json.Unmarshal(data, &fields)
+	
+	// Visual attributes that can be extracted from images
+	visualAttrs := []string{"color", "couleur", "material", "matière", "matiere", "pattern", "motif", "gender", "genre", "age_group", "product_type"}
+	
+	var missing []string
+	for _, attr := range visualAttrs {
+		val := getFieldValueFromMap(fields, attr)
+		if val == "" || val == "N/A" || val == "n/a" || val == "-" {
+			// Normalize to English
+			switch attr {
+			case "couleur":
+				attr = "color"
+			case "matière", "matiere":
+				attr = "material"
+			case "motif":
+				attr = "pattern"
+			case "genre":
+				attr = "gender"
+			}
+			// Avoid duplicates
+			found := false
+			for _, m := range missing {
+				if m == attr {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missing = append(missing, attr)
+			}
+		}
+	}
+	return missing
+}
+
+func getFieldValueFromMap(fields map[string]interface{}, key string) string {
+	// Try exact match
+	if val, ok := fields[key]; ok {
+		if str, ok := val.(string); ok {
+			return strings.TrimSpace(str)
+		}
+	}
+	// Try lowercase
+	for k, v := range fields {
+		if strings.ToLower(k) == strings.ToLower(key) {
+			if str, ok := v.(string); ok {
+				return strings.TrimSpace(str)
+			}
+		}
+	}
+	return ""
 }
 
 func (a *Agent) executeStep(ctx context.Context, session *Session, stepNum int) (*models.AgentTrace, int, bool, error) {
